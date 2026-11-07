@@ -1,0 +1,17 @@
+# Global owners
+* @maintainers
+
+# Critical Security & Supply Chain Workflows
+/.github/                     @maintainers
+/.github/workflows/           @maintainers
+
+# Admission Control & Security Policies
+/platform/kyverno/            @maintainers
+/security/                    @maintainers
+
+# Secrets Management & PKI
+/platform/vault/              @maintainers
+
+# Red-Team Scenarios & Evidence
+/redteam/                     @maintainers
+/docs/evidence/               @maintainers

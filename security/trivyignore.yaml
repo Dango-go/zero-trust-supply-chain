@@ -1,0 +1,7 @@
+# Trivy ignore file with strict mandatory expiration date
+# Expired exceptions will cause CI scan failure.
+vulnerabilities:
+  # Example pattern:
+  # - id: CVE-2024-XXXXX
+  #   statement: "Mitigated by restricted network policy in Cilium"
+  #   expired_at: "2026-12-31T23:59:59Z"

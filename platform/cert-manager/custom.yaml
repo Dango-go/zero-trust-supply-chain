@@ -1,0 +1,112 @@
+# Helm Values configuration for cert-manager (jetstack/cert-manager)
+# Architecture: Zero-Trust Supply Chain Platform v2 - High Availability (HA)
+
+# Automatically install cert-manager Custom Resource Definitions (CRDs)
+# (Certificates, Issuers, ClusterIssuers, CertificateRequests)
+crds:
+  enabled: true
+
+# Main Controller Configuration (HA: 2 replicas with leader election)
+replicaCount: 2
+
+# Leader election ensures only one replica actively manages certificates at a time
+leaderElection:
+  namespace: cert-manager
+
+# Sizing and resource allocation
+resources:
+  limits:
+    cpu: 300m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+# Restricted Pod Security Standard (PSA) compliance
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Spread across different nodes for resilience
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - cert-manager
+          topologyKey: kubernetes.io/hostname
+
+# Webhook Component (Validates and mutates cert-manager CRDs)
+webhook:
+  replicaCount: 2
+  timeoutSeconds: 10
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 30m
+      memory: 64Mi
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - webhook
+            topologyKey: kubernetes.io/hostname
+
+# CA Injector Component (Injects CA bundles into Webhooks & APIServices)
+cainjector:
+  enabled: true
+  replicaCount: 2
+
+  leaderElection:
+    namespace: cert-manager
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 40m
+      memory: 64Mi
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+# Prometheus Metrics
+prometheus:
+  enabled: false
+  servicemonitor:
+    enabled: false

@@ -1,0 +1,90 @@
+name: _sbom
+
+on:
+  workflow_call:
+    inputs:
+      orders_digest:
+        required: true
+        type: string
+        description: "Digest of zt-orders image"
+      payments_digest:
+        required: true
+        type: string
+        description: "Digest of zt-payments image"
+      registry_url:
+        required: true
+        type: string
+        description: "Base URL of Google Artifact Registry"
+
+permissions: {}
+
+jobs:
+  generate-sbom:
+    name: Syft CycloneDX SBOM Generation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write # Required for WIF authentication to Google Cloud
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Authenticate to Google Cloud (WIF)
+        id: auth
+        uses: google-github-actions/auth@71fee0293a6c6463e043699db66ff70743b4695e # v2.1.8
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - name: Log in to Google Artifact Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ${{ vars.GAR_LOCATION || 'europe-west1' }}-docker.pkg.dev
+          username: 'oauth2accesstoken'
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d50c1742433f8c7a4 # v0.18.0
+
+       
+      # Generate CycloneDX SBOM for zt-orders 
+      - name: Generate SBOM for zt-orders
+        env:
+          IMG: "${{ inputs.registry_url }}/zt-orders@${{ inputs.orders_digest }}"
+        run: |
+          mkdir -p sbom-reports
+          echo "==> Generating CycloneDX SBOM for $IMG"
+          syft "$IMG" -o cyclonedx-json=sbom-reports/sbom-orders.cdx.json
+          
+          # Basic validation: ensure components list is not empty
+          jq -e '.components | length > 0' sbom-reports/sbom-orders.cdx.json >/dev/null
+
+ 
+      # Generate CycloneDX SBOM for zt-payments 
+      - name: Generate SBOM for zt-payments
+        env:
+          IMG: "${{ inputs.registry_url }}/zt-payments@${{ inputs.payments_digest }}"
+        run: |
+          echo "==> Generating CycloneDX SBOM for $IMG"
+          syft "$IMG" -o cyclonedx-json=sbom-reports/sbom-payments.cdx.json
+          
+          jq -e '.components | length > 0' sbom-reports/sbom-payments.cdx.json >/dev/null
+
+ 
+      # Upload SBOM reports as artifacts for _build-sign 
+      - name: Upload SBOM Artifacts
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: sbom-reports
+          path: sbom-reports/
+          retention-days: 1
+          if-no-files-found: error

@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: revoked-digests
+  namespace: kyverno
+data:
+  # List of image digests that are revoked due to new CVEs or incidents.
+  # Format: sha256:<digest>: "<Reason and date>"
+  digests.json: |
+    {
+      "revoked": [
+        {
+          "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+          "reason": "Test revoked fixture for RT-04 replay attack",
+          "revoked_at": "2026-11-04T00:00:00Z"
+        }
+      ]
+    }

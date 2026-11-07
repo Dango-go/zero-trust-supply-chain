@@ -1,0 +1,85 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs: 
+  # 1. BUILD: Build container image and push strictly BY DIGEST to GAR 
+  build:
+    name: Build & Push by Digest (GAR)
+    uses: ./.github/workflows/_build-push.yml
+    permissions:
+      contents: read
+      id-token: write # Required for Google Cloud Workload Identity Federation (WIF)
+
+
+  # 2. SBOM: Generate CycloneDX SBOM for the published digest using Syft
+
+  sbom:
+    name: Generate SBOM
+    needs: build
+    uses: ./.github/workflows/_sbom.yml
+    permissions:
+      contents: read
+      id-token: write # For WIF to pull image from GAR
+    with:
+      orders_digest: ${{ needs.build.outputs.orders_digest }}
+      payments_digest: ${{ needs.build.outputs.payments_digest }}
+      registry_url: ${{ needs.build.outputs.registry_url }}
+
+ 
+  # 3. SCAN GATE: Scan digest using Trivy + Grype (Zero secrets)
+  # Fails immediately if any CRITICAL vulnerability is found.
+  scan:
+    name: Vulnerability Gate
+    needs: [build, sbom]
+    uses: ./.github/workflows/_scan-gate.yml
+    permissions:
+      contents: read
+      id-token: write # For WIF read-only pull from GAR
+    with:
+      orders_digest: ${{ needs.build.outputs.orders_digest }}
+      payments_digest: ${{ needs.build.outputs.payments_digest }}
+      registry_url: ${{ needs.build.outputs.registry_url }}
+
+ 
+  # 4. PROVENANCE: Generate signed SLSA Build Level 3 provenance
+  # Crucial Zero-Trust rule: runs ONLY AFTER scan gate passes!
+ 
+  provenance:
+    name: SLSA Build L3 Provenance
+    needs: [build, scan]
+    permissions:
+      actions: read
+      id-token: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
+    with:
+      image: ${{ needs.build.outputs.registry_url }}/zt-orders
+      digest: ${{ needs.build.outputs.orders_digest }}
+      registry-username: "oauth2accesstoken"
+    secrets:
+      registry-password: ${{ secrets.GAR_TOKEN || secrets.GITHUB_TOKEN }}
+
+ 
+  # 5. SIGN: Keyless Cosign Signing + Attestations (SBOM + Scan Report)
+  # Operates inside the protected 'release' GitHub Environment with review gate.
+ 
+  sign:
+    name: Cosign Keyless Sign & Attest
+    needs: [build, sbom, scan, provenance]
+    uses: ./.github/workflows/_build-sign.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      orders_digest: ${{ needs.build.outputs.orders_digest }}
+      payments_digest: ${{ needs.build.outputs.payments_digest }}
+      registry_url: ${{ needs.build.outputs.registry_url }}

@@ -1,0 +1,146 @@
+name: pr
+
+on:
+  pull_request:
+    branches: ["main"]
+
+permissions: {}
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security-audit:
+    name: Security & Workflow Audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@e33a69a23999912be217158784d092d64fce50d6 # v2.3.8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+      - name: Hadolint (Dockerfile Linting)
+        uses: hadolint/hadolint-action@54c9adabbbe4b1de25f470bad52b317336226bb7 # v3.1.0
+        with:
+          #config: .hadolint.yaml
+          recursive: true
+
+      - name: Actionlint (Workflow Syntax Check)
+        uses: reviewdog/action-actionlint@db58217885f9a6570da9c71be4e40ec33fe44a1f # v1.65.0
+
+      - name: Zizmor (GitHub Actions Security Audit)
+        uses: woodruffw/zizmor-action@e7ec89eb8142385eaec8c908aa3f95b5420397cc # v1.4.1
+        with:
+          arguments: "--pedantic"
+
+      - name: Validate Trivy Ignore Expirations
+        run: |
+          IGNORE_FILE="security/trivyignore.yaml"
+          if [[ ! -f "$IGNORE_FILE" ]]; then
+            echo "No $IGNORE_FILE found, skipping."
+            exit 0
+          fi
+          
+          # Check that all ignored CVEs have valid future expired_at
+          NOW_TS=$(date -u +%s)
+          FAILED=0
+          
+          # Extract entries with yq if available, or python fallback
+          python3 -c "
+          import sys, yaml, datetime
+          failed = 0
+          try:
+              with open('$IGNORE_FILE') as f:
+                  data = yaml.safe_load(f) or {}
+              vulns = data.get('vulnerabilities', []) or []
+              now = datetime.datetime.now(datetime.timezone.utc)
+              for v in vulns:
+                  cve_id = v.get('id', 'unknown')
+                  exp_str = v.get('expired_at')
+                  if not exp_str:
+                      print(f'::error::CVE exception {cve_id} is missing mandatory expired_at field')
+                      failed = 1
+                      continue
+                  exp_dt = datetime.datetime.fromisoformat(exp_str.replace('Z', '+00:00'))
+                  if exp_dt < now:
+                      print(f'::error::CVE exception {cve_id} expired on {exp_str}')
+                      failed = 1
+          except Exception as e:
+              print(f'::error::Failed to parse $IGNORE_FILE: {e}')
+              failed = 1
+          sys.exit(failed)
+          "
+
+  unit-tests:
+    name: Workload Unit Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@887a942a15af3a7626099df99e897a18d9e5ab3a # v5.1.0
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      # Pytest tests
+      - name: Test zt-payments
+        run: |
+          cd apps/zt-payments
+          PYTHONPATH=. uv run --with pytest --with httpx --with fastapi --with pydantic pytest tests/
+
+      - name: Test zt-orders
+        run: |
+          cd apps/zt-orders
+          PYTHONPATH=. uv run --with pytest --with httpx --with fastapi --with pydantic --with asyncpg pytest tests/
+
+  pr-gate:
+    name: pr-gate
+    if: always()
+    needs: # dependency
+      - security-audit
+      - unit-tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: Check Statuses
+        run: |
+          AUDIT="${{ needs.security-audit.result }}"
+          TESTS="${{ needs.unit-tests.result }}"
+          echo "security-audit: $AUDIT"
+          echo "unit-tests: $TESTS"
+          if [[ "$AUDIT" != "success" || "$TESTS" != "success" ]]; then
+            echo "::error::One or more required PR checks failed!"
+            exit 1
+          fi
+          echo "All PR checks passed successfully."

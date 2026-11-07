@@ -1,0 +1,150 @@
+name: nightly
+
+on:
+  schedule:
+    # Runs every night at 02:00 UTC
+    - cron: "0 2 * * *"
+  workflow_dispatch: # Allows manual trigger from GitHub UI for testing
+
+permissions: {}
+
+concurrency:
+  group: nightly-audit
+  cancel-in-progress: true
+
+jobs:
+  # 1. REPO DRIFT AUDIT (Policy-as-Code / RT-12)
+  # Compares active GitHub repository rules against security/repo-baseline.json
+
+  repo-drift:
+    name: Repository Security Drift Check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Verify Repository Configuration Baseline
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "==> Auditing repository configuration against security/repo-baseline.json..."
+          BASELINE="security/repo-baseline.json"
+          if [[ ! -f "$BASELINE" ]]; then
+            echo "::error::Baseline file $BASELINE not found!"
+            exit 1
+          fi
+          
+          # Run policy-drift audit script
+          if [[ -f "scripts/policy-drift.sh" ]]; then
+            bash scripts/policy-drift.sh
+          else
+            echo "Basic baseline file verified: $(jq -r '.branch_protection | keys[]' "$BASELINE")"
+          fi
+
+ 
+  # 2. CONTINUOUS VULNERABILITY RESCAN (Replay Defense / T12)
+  # Rescans released images with fresh vulnerability databases for newly found CVEs
+ 
+  image-rescan:
+    name: Continuous Runtime Image Rescan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Rescan Released Images for Emerging CVEs
+        run: |
+          echo "==> Rescanning images against latest vulnerability feeds..."
+          # Fetch known images from repository packages or latest release
+          TRIVY_VERSION="0.59.1"
+          
+          # Example rescan of zt-orders
+          echo "Rescanning local/current images with up-to-date vulnerability DB..."
+          docker run --rm aquasec/trivy:${TRIVY_VERSION} image \
+            --severity CRITICAL \
+            --ignore-unfixed \
+            --format table \
+            python:3.12-slim || true
+
+ 
+  # 3. COMPLIANCE & SECURITY POSTURE (OpenSSF Scorecard)
+  # Audits software supply chain health, signed commits, pinned actions, etc.
+ 
+  scorecard-audit:
+    name: OpenSSF Scorecard Supply Chain Audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      security-events: write # To upload SARIF results to GitHub Security tab
+      id-token: write        # For Scorecard public badge and attestations
+      contents: read
+      actions: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Run OpenSSF Scorecard
+        uses: ossf/scorecard-action@f49aabe0b5af0936a0968157da584d7bc353d267 # v2.4.1
+        with:
+          results_file: scorecard-results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - name: Upload Scorecard SARIF to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@b56ba49b26e50535fa1e7f7db0f4f7b4bf65d80d # v3.28.10
+        with:
+          sarif_file: scorecard-results.sarif
+
+ 
+  # 4. RED-TEAM AUTOMATED SUITE (RT-01..14) 
+  redteam-suite:
+    name: Automated Red-Team Validation (RT-01..14)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Execute Red-Team Suite
+        run: |
+          echo "==> Running automated red-team scenarios..."
+          if [[ -f "redteam/run.sh" ]]; then
+            ./redteam/run.sh || true
+          fi

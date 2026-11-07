@@ -1,0 +1,314 @@
+nameOverride: "kyverno"
+fullnameOverride: "kyverno"
+
+crds:
+  install: true
+
+commonLabels:
+  app.kubernetes.io/part-of: kyverno-security
+  security-tier: zero-trust
+
+webhooksCleanup:
+  enabled: true
+  autoDeleteWebhooks:
+    enabled: true
+
+config:
+  preserveDefaultFilters: true
+  resourceFilters:
+    - "[Event,*,*]"
+    - "[*,kube-system,*]"
+    - "[*,kube-public,*]"
+    - "[*,kube-node-lease,*]"
+    - "[*,kyverno,*]"
+    - "[*,gke-managed-cim,*]"
+    - "[*,gmp-system,*]"
+    - "[*,cnpg-system,*]"
+    - "[Node,*,*]"
+    - "[Node/*,*,*]"
+    - "[APIService,*,*]"
+    - "[TokenReview,*,*]"
+    - "[SubjectAccessReview,*,*]"
+    - "[SelfSubjectAccessReview,*,*]"
+    - "[Binding,*,*]"
+    - "[Pod/binding,*,*]"
+    - "[ReplicaSet,*,*]"
+
+  webhooks:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+            - kube-public
+            - kube-node-lease
+            - kyverno
+            - gmp-system
+            - cnpg-system
+
+features:
+  logging:
+    format: json
+    verbosity: 2
+
+  omitEvents:
+    eventTypes:
+      - PolicyApplied
+      - PolicySkipped
+
+  backgroundScan:
+    enabled: true
+    backgroundScanInterval: 1h
+    backgroundScanWorkers: 2
+    skipResourceFilters: true
+
+  admissionReports:
+    enabled: true
+
+  policyExceptions:
+    enabled: true
+    namespace: "kyverno"
+
+  autoUpdateWebhooks:
+    enabled: true
+
+admissionController:
+  replicas: 3
+  priorityClassName: "system-cluster-critical"
+
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+    name: "kyverno-admission-controller"
+    automountServiceAccountToken: true
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  antiAffinity:
+    enabled: true
+
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: admission-controller
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: admission-controller
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+
+  initContainer:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      capabilities:
+        drop:
+          - ALL
+
+  container:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 384Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+      capabilities:
+        drop:
+          - ALL
+
+  startupProbe:
+    failureThreshold: 20
+    periodSeconds: 6
+
+  livenessProbe:
+    httpGet:
+      path: /health/liveness
+      port: 9443
+      scheme: HTTPS
+    initialDelaySeconds: 15
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /health/readiness
+      port: 9443
+      scheme: HTTPS
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  networkPolicy:
+    enabled: true
+
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+backgroundController:
+  enabled: true
+  replicas: 2
+  priorityClassName: "system-cluster-critical"
+
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+    name: "kyverno-background-controller"
+    automountServiceAccountToken: true
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+  antiAffinity:
+    enabled: true
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - ALL
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  networkPolicy:
+    enabled: true
+
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+cleanupController:
+  enabled: true
+  replicas: 1
+
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+    name: "kyverno-cleanup-controller"
+    automountServiceAccountToken: true
+
+  podDisruptionBudget:
+    enabled: false
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - ALL
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+  networkPolicy:
+    enabled: true
+
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+reportsController:
+  enabled: true
+  replicas: 1
+
+  rbac:
+    create: true
+  serviceAccount:
+    create: true
+    name: "kyverno-reports-controller"
+    automountServiceAccountToken: true
+
+  podDisruptionBudget:
+    enabled: false
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    capabilities:
+      drop:
+        - ALL
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+  networkPolicy:
+    enabled: true
+
+  serviceMonitor:
+    enabled: true
+    interval: 30s

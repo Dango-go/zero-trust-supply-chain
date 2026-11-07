@@ -1,0 +1,16 @@
+PLAN.md
+BASE.md
+.env
+uv.lock
+.venv
+__pycache__
+*.pyc
+.idea
+.vscode
+
+# Terraform
+*/terraform.tfstate
+*/terraform.tfstate.*
+*/terraform.tfvars
+*/*.tfstate.backup
+*/.terraform

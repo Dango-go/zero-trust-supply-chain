@@ -1,0 +1,163 @@
+name: _scan-gate
+
+on:
+  workflow_call:
+    inputs:
+      orders_digest:
+        required: true
+        type: string
+        description: "Digest of zt-orders image to scan"
+      payments_digest:
+        required: true
+        type: string
+        description: "Digest of zt-payments image to scan"
+      registry_url:
+        required: true
+        type: string
+        description: "Base URL of Google Artifact Registry"
+
+permissions: {}
+
+jobs:
+  vulnerability-gate:
+    name: Trivy & Grype Gate Check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write # Required for WIF to pull image from GAR
+    steps:
+      - name: Harden runner (Egress allowlist)
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Authenticate to Google Cloud (WIF)
+        id: auth
+        uses: google-github-actions/auth@71fee0293a6c6463e043699db66ff70743b4695e # v2.1.8
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - name: Log in to Google Artifact Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ${{ vars.GAR_LOCATION || 'europe-west1' }}-docker.pkg.dev
+          username: 'oauth2accesstoken'
+          password: ${{ steps.auth.outputs.access_token }}
+
+        # SBOM
+      - name: Install Grype (Secondary independent scanner)
+        uses: anchore/scan-action/download-grype@7c05671ae3be166aeb157bac2a5df38168345c06 # v6.1.0
+
+ 
+      # Check security/trivyignore.yaml for expired exceptions 
+      - name: Validate Trivy Ignore Expirations
+        run: |
+          IGNORE_FILE="security/trivyignore.yaml"
+          if [[ -f "$IGNORE_FILE" ]]; then
+            python3 -c "
+            import sys, yaml, datetime
+            failed = 0
+            try:
+                with open('$IGNORE_FILE') as f:
+                    data = yaml.safe_load(f) or {}
+                vulns = data.get('vulnerabilities', []) or []
+                now = datetime.datetime.now(datetime.timezone.utc)
+                for v in vulns:
+                    cve_id = v.get('id', 'unknown')
+                    exp_str = v.get('expired_at')
+                    if not exp_str:
+                        print(f'::error::CVE exception {cve_id} is missing mandatory expired_at field')
+                        failed = 1
+                        continue
+                    exp_dt = datetime.datetime.fromisoformat(exp_str.replace('Z', '+00:00'))
+                    if exp_dt < now:
+                        print(f'::error::CVE exception {cve_id} expired on {exp_str}')
+                        failed = 1
+            except Exception as e:
+                print(f'::error::Failed to parse $IGNORE_FILE: {e}')
+                failed = 1
+            sys.exit(failed)
+            "
+          fi
+
+
+      # 1. SCAN zt-orders
+      - name: Scan zt-orders (Trivy cosign-vuln report + Gate + Grype)
+        env:
+          IMG: "${{ inputs.registry_url }}/zt-orders@${{ inputs.orders_digest }}"
+          TRIVY_VERSION: "0.59.1"
+        run: |
+          echo "==> Scanning zt-orders: $IMG"
+          mkdir -p reports
+          
+          # 1. Generate cosign-vuln predicate for Cosign attestation
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/reports":/reports \
+            aquasec/trivy:${TRIVY_VERSION} image \
+            --format cosign-vuln \
+            --output /reports/vuln-orders.json \
+            "$IMG"
+
+          # 2. Hard Gate: Fail if any CRITICAL vulnerability exists
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/security/trivyignore.yaml":/.trivyignore.yaml:ro \
+            aquasec/trivy:${TRIVY_VERSION} image \
+            --severity CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --ignorefile /.trivyignore.yaml \
+            "$IMG"
+
+          # 3. Second opinion: Grype validation
+          grype "$IMG" --fail-on critical --only-fixed
+
+
+      # 2. SCAN zt-payments
+      - name: Scan zt-payments (Trivy cosign-vuln report + Gate + Grype)
+        env:
+          IMG: "${{ inputs.registry_url }}/zt-payments@${{ inputs.payments_digest }}"
+          TRIVY_VERSION: "0.59.1"
+        run: |
+          echo "==> Scanning zt-payments: $IMG"
+          
+          # 1. Generate cosign-vuln predicate for Cosign attestation
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/reports":/reports \
+            aquasec/trivy:${TRIVY_VERSION} image \
+            --format cosign-vuln \
+            --output /reports/vuln-payments.json \
+            "$IMG"
+
+          # 2. Hard Gate: Fail if any CRITICAL vulnerability exists
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD/security/trivyignore.yaml":/.trivyignore.yaml:ro \
+            aquasec/trivy:${TRIVY_VERSION} image \
+            --severity CRITICAL \
+            --exit-code 1 \
+            --ignore-unfixed \
+            --ignorefile /.trivyignore.yaml \
+            "$IMG"
+
+          # 3. Second opinion: Grype validation
+          grype "$IMG" --fail-on critical --only-fixed
+
+      # 3. Upload vulnerability reports as artifacts for _build-sign
+      - name: Upload vulnerability reports
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: vuln-reports
+          path: reports/
+          retention-days: 1
+          if-no-files-found: error

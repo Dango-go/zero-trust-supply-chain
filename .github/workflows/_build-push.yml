@@ -1,0 +1,106 @@
+name: _build-push
+
+on:
+  workflow_call:
+    outputs:
+      orders_digest:
+        description: "Immutable sha256 digest of zt-orders image"
+        value: ${{ jobs.build-images.outputs.orders_digest }}
+      payments_digest:
+        description: "Immutable sha256 digest of zt-payments image"
+        value: ${{ jobs.build-images.outputs.payments_digest }}
+      registry_url:
+        description: "Full base URL of the Google Artifact Registry repository"
+        value: ${{ jobs.build-images.outputs.registry_url }}
+
+permissions: {}
+
+jobs:
+  build-images:
+    name: Build and Push OCI Images to Google Artifact Registry
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Required for Workload Identity Federation (WIF)
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      orders_digest: ${{ steps.build_orders.outputs.digest }}
+      payments_digest: ${{ steps.build_payments.outputs.digest }}
+      registry_url: ${{ steps.set_reg.outputs.registry_url }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set Registry Base URL
+        id: set_reg
+        env:
+          LOCATION: ${{ vars.GAR_LOCATION || 'europe-west1' }}
+          PROJECT: ${{ vars.GCP_PROJECT_ID }}
+          REPO: ${{ vars.GAR_REPOSITORY || 'zero-trust' }}
+        run: |
+          REG_URL="${LOCATION}-docker.pkg.dev/${PROJECT}/${REPO}"
+          echo "registry_url=${REG_URL}" >> "$GITHUB_OUTPUT"
+          echo "Using Artifact Registry URL: ${REG_URL}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+ 
+      # Google Cloud Workload Identity Federation (WIF) Authentication
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@71fee0293a6c6463e043699db66ff70743b4695e # v2.1.8
+        with:
+          token_format: 'access_token'
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - name: Log in to Google Artifact Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ${{ vars.GAR_LOCATION || 'europe-west1' }}-docker.pkg.dev
+          username: 'oauth2accesstoken'
+          password: ${{ steps.auth.outputs.access_token }}
+
+ 
+      # 1. Build and push zt-orders strictly BY DIGEST to GAR
+      - name: Build and Push zt-orders by digest
+        id: build_orders
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: apps/zt-orders
+          file: apps/zt-orders/Dockerfile
+          push: true
+          # settings for docker buildx
+          outputs: type=image,name=${{ steps.set_reg.outputs.registry_url }}/zt-orders,push-by-digest=true,name-canonical=true
+          provenance: false
+          sbom: false
+
+      # 2. Build and push zt-payments strictly BY DIGEST to GAR
+      - name: Build and Push zt-payments by digest
+        id: build_payments
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6.15.0
+        with:
+          context: apps/zt-payments
+          file: apps/zt-payments/Dockerfile
+          push: true
+          outputs: type=image,name=${{ steps.set_reg.outputs.registry_url }}/zt-payments,push-by-digest=true,name-canonical=true
+          provenance: false
+          sbom: false
+
+      - name: Log Build Outputs
+        run: |
+          echo "=========================================================="
+          echo "Build by Digest to Google Artifact Registry Completed"
+          echo "Registry Base:      ${{ steps.set_reg.outputs.registry_url }}"
+          echo "zt-orders digest:   ${{ steps.build_orders.outputs.digest }}"
+          echo "zt-payments digest: ${{ steps.build_payments.outputs.digest }}"
+          echo "=========================================================="
