@@ -15,13 +15,12 @@ falco:
   outputs:
     rate: 100
     max_burst: 1000
-
-  # Виправлено шляхи: правил.d вже включає всі файли з цієї папки
+ 
   rules_file:
     - /etc/falco/falco_rules.yaml
     - /etc/falco/falco_rules.local.yaml
     - /etc/falco/rules.d
-    # Видалено зайвий шлях /etc/falco/zt-rules.yaml, оскільки чарт розгорне його в rules.d/zt-rules.yaml
+
 
  
 # Custom Zero-Trust Supply Chain Security Rules (Inlined into Helm values)
