@@ -1,0 +1,46 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: deny-revoked-digests
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+  annotations:
+    policies.kyverno.io/title: "Deny Compromised or Revoked Image Digests"
+    policies.kyverno.io/category: "Vulnerability Management"
+    policies.kyverno.io/severity: "critical"
+    policies.kyverno.io/description: >
+      Blocks deployment of any container image digest that has been revoked or quarantined
+      due to discovered zero-day CVEs, secret leak, or supply chain compromise.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-revoked-digests
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      context:
+        - name: revokedDigests
+          configMap:
+            name: revoked-digests
+            namespace: kyverno
+      preconditions:
+        all:
+          - key: "{{ revokedDigests.data.digests || '' }}"
+            operator: NotEquals
+            value: ""
+      validate:
+        message: "Image digest {{ element.image }} is REVOKED due to critical security policy. Deployment rejected."
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ regex_replace_all_literal('@sha256:', element.image, ' ') | split(@, ' ')[1] || '' }}"
+                    operator: In
+                    value: "{{ parse_json(revokedDigests.data.digests) }}"

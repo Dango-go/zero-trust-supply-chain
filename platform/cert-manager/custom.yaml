@@ -1,6 +1,3 @@
-# Helm Values configuration for cert-manager (jetstack/cert-manager)
-# Architecture: Zero-Trust Supply Chain Platform v2 - High Availability (HA)
-
 # Automatically install cert-manager Custom Resource Definitions (CRDs)
 # (Certificates, Issuers, ClusterIssuers, CertificateRequests)
 crds:

@@ -1,0 +1,23 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: payments-egress-tofqdns
+  namespace: zt-apps
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+spec:
+  description: "Allow zt-payments outbound egress strictly to approved payment gateway FQDN on port 443"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: zt-payments
+  egress:
+    - toFQDNs:
+        - matchName: "api.psp.example"
+        - matchName: "httpbin.org"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "80"
+              protocol: TCP

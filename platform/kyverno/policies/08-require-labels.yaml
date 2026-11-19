@@ -1,0 +1,33 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+  annotations:
+    policies.kyverno.io/title: "Require Standard Governance Labels"
+    policies.kyverno.io/category: "Best Practices"
+    policies.kyverno.io/severity: "low"
+    policies.kyverno.io/description: >
+      Enforces that all Pods in application namespaces include mandatory
+      governance and ownership labels (app.kubernetes.io/name and app.kubernetes.io/part-of).
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-mandatory-labels
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      validate:
+        message: "The labels 'app.kubernetes.io/name' and 'app.kubernetes.io/part-of' are mandatory."
+        pattern:
+          metadata:
+            labels:
+              app.kubernetes.io/name: "?*"
+              app.kubernetes.io/part-of: "?*"

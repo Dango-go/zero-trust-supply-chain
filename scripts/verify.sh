@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=========================================================="
 echo " Zero-Trust Supply Chain: Image Signature & Attestation Check"
-echo "=========================================================="
 
 IMAGE_REF="${1:-}"
+# Error handling for empty image reference
 if [[ -z "${IMAGE_REF}" ]]; then
   echo "Usage: $0 <image-digest-reference>"
   echo "Example: $0 ghcr.io/org/zt-orders@sha256:..."

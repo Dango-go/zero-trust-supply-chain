@@ -173,7 +173,7 @@ admissionController:
     enabled: true
 
   serviceMonitor:
-    enabled: true
+    enabled: false
     interval: 30s
 
 backgroundController:
@@ -222,7 +222,7 @@ backgroundController:
     enabled: true
 
   serviceMonitor:
-    enabled: true
+    enabled: false
     interval: 30s
 
 cleanupController:
@@ -266,7 +266,7 @@ cleanupController:
     enabled: true
 
   serviceMonitor:
-    enabled: true
+    enabled: false
     interval: 30s
 
 reportsController:
@@ -310,5 +310,5 @@ reportsController:
     enabled: true
 
   serviceMonitor:
-    enabled: true
+    enabled: false
     interval: 30s

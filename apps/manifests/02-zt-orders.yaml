@@ -133,5 +133,5 @@ spec:
           emptyDir: {}
         # EmptyDir or VaultDynamicSecret secret projection
         - name: vault-secrets
-          emptyDir:
-            medium: Memory
+          secret:
+            secretName: orders-db-creds

@@ -1,3 +1,5 @@
+# sbom-<service-name>.cdx.json - files in standart CycloneDX JSON format, including os-packages, libraries with details and dependencies
+
 name: _sbom
 
 on:
@@ -39,7 +41,7 @@ jobs:
 
       - name: Authenticate to Google Cloud (WIF)
         id: auth
-        uses: google-github-actions/auth@71fee0293a6c6463e043699db66ff70743b4695e # v2.1.8
+        uses: google-github-actions/auth@71f986410dfbc7added4569d411d040a91dc6935 # v2.1.8
         with:
           token_format: 'access_token'
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
@@ -53,7 +55,7 @@ jobs:
           password: ${{ steps.auth.outputs.access_token }}
 
       - name: Install Syft
-        uses: anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d50c1742433f8c7a4 # v0.18.0
+        uses: anchore/sbom-action/download-syft@f325610c9f50a54015d37c8d16cb3b0e2c8f4de0 # v0.18.0
 
        
       # Generate CycloneDX SBOM for zt-orders 
@@ -86,5 +88,5 @@ jobs:
         with:
           name: sbom-reports
           path: sbom-reports/
-          retention-days: 1
+          retention-days: 1 # save artifact for 1 day on repository (Workflow Artifacts)
           if-no-files-found: error

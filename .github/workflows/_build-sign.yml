@@ -41,7 +41,7 @@ jobs:
 
       - name: Authenticate to Google Cloud (WIF)
         id: auth
-        uses: google-github-actions/auth@71fee0293a6c6463e043699db66ff70743b4695e # v2.1.8
+        uses: google-github-actions/auth@71f986410dfbc7added4569d411d040a91dc6935 # v2.1.8
         with:
           token_format: 'access_token'
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
@@ -55,18 +55,18 @@ jobs:
           password: ${{ steps.auth.outputs.access_token }}
 
       - name: Install Cosign (Sigstore)
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.8.2
+        uses: sigstore/cosign-installer@3454372f43399081ed03b604cb2d021dabca52bb # v3.8.2
         with:
           cosign-release: "v2.4.3"
 
-      # -----------------------------------------------------------------------
+
       # Download SBOM and Vulnerability artifacts from previous phases
-      # -----------------------------------------------------------------------
+
       - name: Download SBOM Artifacts
         uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
         with:
           name: sbom-reports
-          path: ./artifacts/sbom
+          path: ./artifacts/sbom # local path of where artifacts on runner
 
       - name: Download Vulnerability Artifacts
         uses: actions/download-artifact@cc203385981b70ca67e1cc392babf9cc229d5806 # v4.1.9
@@ -74,9 +74,9 @@ jobs:
           name: vuln-reports
           path: ./artifacts/vuln
 
-      # -----------------------------------------------------------------------
+
       # 1. SIGN & ATTEST: zt-orders
-      # -----------------------------------------------------------------------
+
       - name: Sign & Attest zt-orders (Keyless Sigstore to GAR)
         env:
           IMG: "${{ inputs.registry_url }}/zt-orders@${{ inputs.orders_digest }}"
@@ -92,9 +92,9 @@ jobs:
           echo "==> Attesting Vulnerability Scan Report..."
           cosign attest --yes --type vuln --predicate "$VULN_FILE" "$IMG"
 
-      # -----------------------------------------------------------------------
+
       # 2. SIGN & ATTEST: zt-payments
-      # -----------------------------------------------------------------------
+
       - name: Sign & Attest zt-payments (Keyless Sigstore to GAR)
         env:
           IMG: "${{ inputs.registry_url }}/zt-payments@${{ inputs.payments_digest }}"
@@ -112,7 +112,6 @@ jobs:
 
       - name: Verification Summary
         run: |
-          echo "=========================================================="
           echo "All images successfully signed and attested in Google Artifact Registry!"
           echo "Fulcio OIDC identity and Rekor transparency logs attached."
-          echo "=========================================================="
+

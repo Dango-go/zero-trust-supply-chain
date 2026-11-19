@@ -14,3 +14,6 @@ __pycache__
 */terraform.tfvars
 */*.tfstate.backup
 */.terraform
+
+# Vault Secrets
+.vault-init.json

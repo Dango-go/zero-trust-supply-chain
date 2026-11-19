@@ -1,0 +1,33 @@
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: allow-redteam-event-generator
+  namespace: kyverno
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: redteam-testing
+  annotations:
+    zero-trust.io/reason: "Allow falcosecurity/event-generator image for RT-10 runtime attack simulation"
+    zero-trust.io/owner: "redteam-automation"
+spec:
+  exceptions:
+    - policyName: verify-images
+      ruleNames:
+        - verify-cosign-signature
+        - verify-sbom-attestation
+        - verify-slsa-provenance
+    - policyName: disallow-latest-tag
+      ruleNames:
+        - require-image-digest
+  match:
+    any:
+      - resources:
+          kinds:
+            - Pod
+            - Job
+            - Deployment
+          namespaces:
+            - redteam
+          names:
+            - event-generator*
+            - zt-toolbox*

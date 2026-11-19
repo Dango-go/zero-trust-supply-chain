@@ -22,7 +22,6 @@ jobs:
 
 
   # 2. SBOM: Generate CycloneDX SBOM for the published digest using Syft
-
   sbom:
     name: Generate SBOM
     needs: build
@@ -53,25 +52,30 @@ jobs:
  
   # 4. PROVENANCE: Generate signed SLSA Build Level 3 provenance
   # Crucial Zero-Trust rule: runs ONLY AFTER scan gate passes!
- 
   provenance:
-    name: SLSA Build L3 Provenance
+    name: SLSA Build L3 Provenance (${{ matrix.target.name }})
     needs: [build, scan]
+    strategy:
+      matrix:
+        target:
+          - name: zt-orders
+            digest: ${{ needs.build.outputs.orders_digest }}
+          - name: zt-payments
+            digest: ${{ needs.build.outputs.payments_digest }}
     permissions:
       actions: read
       id-token: write
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
     with:
-      image: ${{ needs.build.outputs.registry_url }}/zt-orders
-      digest: ${{ needs.build.outputs.orders_digest }}
+      image: ${{ needs.build.outputs.registry_url }}/${{ matrix.target.name }}
+      digest: ${{ matrix.target.digest }}
       registry-username: "oauth2accesstoken"
     secrets:
-      registry-password: ${{ secrets.GAR_TOKEN || secrets.GITHUB_TOKEN }}
+      registry-password: ${{ needs.build.outputs.gar_token }}
 
  
   # 5. SIGN: Keyless Cosign Signing + Attestations (SBOM + Scan Report)
   # Operates inside the protected 'release' GitHub Environment with review gate.
- 
   sign:
     name: Cosign Keyless Sign & Attest
     needs: [build, sbom, scan, provenance]

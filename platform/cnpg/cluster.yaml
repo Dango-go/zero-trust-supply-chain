@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: zt-data
+  labels:
+    name: zt-data
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+---
+# PostgreSQL Cluster (CloudNativePG HA)
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres
+  namespace: zt-data
+  labels:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+spec:
+  instances: 2 # 1 Primary + 1 Standby replica (High Availability)
+
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.4
+
+  storage:
+    size: 10Gi
+    storageClass: "standard-rwo"
+
+  bootstrap:
+    initdb:
+      database: orders
+      owner: vault_admin
+
+  # Managed secrets: CNPG will automatically generate secure root/admin credentials
+  managed:
+    services:
+      additional:
+        - selectorType: rw
+          serviceTemplate:
+            metadata:
+              name: postgres-rw
+              labels:
+                app.kubernetes.io/name: postgres
+
+  # Pod Security Standard Restricted compliance
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: cnpg.io/cluster
+                  operator: In
+                  values:
+                    - postgres
+            topologyKey: kubernetes.io/hostname

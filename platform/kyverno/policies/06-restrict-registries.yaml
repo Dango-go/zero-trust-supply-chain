@@ -1,0 +1,37 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-registries
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+  annotations:
+    policies.kyverno.io/title: "Restrict Container Image Registries"
+    policies.kyverno.io/category: "Supply Chain Security"
+    policies.kyverno.io/severity: "high"
+    policies.kyverno.io/description: >
+      Restricts container images in application namespaces to authorized registries only:
+      Google Artifact Registry (*-docker.pkg.dev/*) and vetted base images (gcr.io/distroless/*, ghcr.io/*).
+      Untrusted public registries (docker.io, quay.io, etc.) are strictly rejected (RT-07).
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: validate-registries
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      validate:
+        message: "Untrusted registry. Images must originate from authorized Google Artifact Registry (*-docker.pkg.dev/*) or Distroless."
+        pattern:
+          spec:
+            =(initContainers):
+              - image: "*-docker.pkg.dev/* | gcr.io/distroless/* | ghcr.io/*"
+            containers:
+              - image: "*-docker.pkg.dev/* | gcr.io/distroless/* | ghcr.io/*"
+            =(ephemeralContainers):
+              - image: "*-docker.pkg.dev/* | gcr.io/distroless/* | ghcr.io/*"

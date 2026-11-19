@@ -1,0 +1,57 @@
+nameOverride: "trivy-operator"
+fullnameOverride: "trivy-operator"
+
+commonLabels:
+  app.kubernetes.io/part-of: trivy-security
+  security-tier: zero-trust
+
+targetNamespaces: "zt-apps"
+excludeNamespaces: "kube-system,kube-public,kube-node-lease,kyverno,falco,vault,cert-manager"
+
+operator:
+  scanJobsConcurrentLimit: 2 # count scanners pods at the same time
+  scanJobTimeout: 5m # one pod timeout of scanning
+  scanJobRetryAfter: 30s # time between retries of scanning
+  privateRegistryScanSecretsNames: {}
+
+trivy:
+  mode: Standalone
+  severity: "CRITICAL,HIGH"
+  ignoreUnfixed: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+compliance:
+  reportType: summary
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  runAsGroup: 10001
+  fsGroup: 10001
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+serviceMonitor:
+  enabled: false
+  interval: 30s

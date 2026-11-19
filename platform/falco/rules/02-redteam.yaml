@@ -1,0 +1,12 @@
+- rule: RedTeam Synthetic Attack Detected
+  desc: Detects synthetic syscall generation from event-generator during RT-10 scenario
+  condition: >
+    spawned_process and container and
+    k8s.ns.name = "redteam" and
+    (proc.name in (event-generator, zt-toolbox, nmap, masscan, netcat, nc) or
+     proc.cmdline contains "event-generator")
+  output: >
+    [REDTEAM-SIMULATION] Security attack testing tool executed 
+    (user=%user.name ns=%k8s.ns.name pod=%k8s.pod.name cmd=%proc.cmdline)
+  priority: NOTICE
+  tags: [redteam, test, rt10]

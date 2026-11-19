@@ -1,0 +1,60 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resources
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+  annotations:
+    policies.kyverno.io/title: "Require CPU & Memory Requests and Limits"
+    policies.kyverno.io/category: "Best Practices & Resource Quotas"
+    policies.kyverno.io/severity: "medium"
+    policies.kyverno.io/description: >
+      Enforces that all containers in production namespaces explicitly define
+      CPU and memory requests and limits to prevent Noisy Neighbor attacks,
+      uncontrolled pod eviction, and node exhaustion (DoS).
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: check-container-resources
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      validate:
+        message: "All containers in 'zt-apps' must specify CPU and Memory requests and limits."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+
+    - name: check-init-container-resources
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      validate:
+        message: "All initContainers in 'zt-apps' must specify CPU and Memory requests and limits."
+        pattern:
+          spec:
+            =(initContainers):
+              - resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"

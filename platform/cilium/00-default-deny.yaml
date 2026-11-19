@@ -1,0 +1,13 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: zt-apps
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+spec:
+  description: "Strict Zero-Trust baseline: Deny all ingress and egress traffic in zt-apps"
+  endpointSelector: {}
+  ingress: []
+  egress: []
