@@ -24,9 +24,10 @@ resource "google_artifact_registry_repository" "zero_trust" {
   description   = "Zero-Trust Supply Chain OCI registry for signed images, SBOMs, and attestations"
   format        = "DOCKER"
 
-  # Immutable tags: Prevents overwriting existing image tags (Strict Zero-Trust practice)
+  # Allow cosign attest to append multiple attestations (cyclonedx, vuln) to the .att tag;
+  # image immutability is enforced via push-by-digest=true and Kyverno disallow-latest-tag.
   docker_config {
-    immutable_tags = true
+    immutable_tags = false
   }
 
   labels = {
