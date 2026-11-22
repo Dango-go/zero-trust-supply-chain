@@ -63,30 +63,31 @@ jobs:
         run: |
           IGNORE_FILE="security/trivyignore.yaml"
           if [[ -f "$IGNORE_FILE" ]]; then
-            python3 -c "
-            import sys, yaml, datetime
-            failed = 0
-            try:
-                with open('$IGNORE_FILE') as f:
-                    data = yaml.safe_load(f) or {}
-                vulns = data.get('vulnerabilities', []) or []
-                now = datetime.datetime.now(datetime.timezone.utc)
-                for v in vulns:
-                    cve_id = v.get('id', 'unknown')
-                    exp_str = v.get('expired_at')
-                    if not exp_str:
-                        print(f'::error::CVE exception {cve_id} is missing mandatory expired_at field')
-                        failed = 1
-                        continue
-                    exp_dt = datetime.datetime.fromisoformat(exp_str.replace('Z', '+00:00'))
-                    if exp_dt < now:
-                        print(f'::error::CVE exception {cve_id} expired on {exp_str}')
-                        failed = 1
-            except Exception as e:
-                print(f'::error::Failed to parse $IGNORE_FILE: {e}')
-                failed = 1
-            sys.exit(failed)
-            "
+            IGNORE_FILE="$IGNORE_FILE" python3 -c "
+          import os, sys, yaml, datetime
+          ignore_file = os.environ['IGNORE_FILE']
+          failed = 0
+          try:
+              with open(ignore_file) as f:
+                  data = yaml.safe_load(f) or {}
+              vulns = data.get('vulnerabilities', []) or []
+              now = datetime.datetime.now(datetime.timezone.utc)
+              for v in vulns:
+                  cve_id = v.get('id', 'unknown')
+                  exp_str = v.get('expired_at')
+                  if not exp_str:
+                      print(f'::error::CVE exception {cve_id} is missing mandatory expired_at field')
+                      failed = 1
+                      continue
+                  exp_dt = datetime.datetime.fromisoformat(exp_str.replace('Z', '+00:00'))
+                  if exp_dt < now:
+                      print(f'::error::CVE exception {cve_id} expired on {exp_str}')
+                      failed = 1
+          except Exception as e:
+              print(f'::error::Failed to parse {ignore_file}: {e}')
+              failed = 1
+          sys.exit(failed)
+          "
           fi
 
 
