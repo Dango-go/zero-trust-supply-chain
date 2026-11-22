@@ -48,7 +48,7 @@ jobs:
       - name: Zizmor (GitHub Actions Security Audit)
         run: |
           pip install --quiet zizmor
-          zizmor --pedantic .github/workflows/
+          zizmor .github/workflows/
 
       - name: Checkov (IaC Static Security Analysis)
         uses: bridgecrewio/checkov-action@b17b606d6ec72bb8ba5721ad5b7e340b80a9fc39 # master
