@@ -104,18 +104,18 @@ jobs:
           docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD/reports":/reports \
-            aquasec/trivy:${TRIVY_VERSION} image \
-            --format cosign-vuln \ # a report in the Cosign Vulnerability Predicate format, which Cosign itself will require
+            aquasec/trivy:"${TRIVY_VERSION}" image \
+            --format cosign-vuln \
             --output /reports/vuln-orders.json \
-            "$IMG" # target image to trivy scan
+            "$IMG"
 
           # 2. Hard Gate: Fail if any CRITICAL vulnerability exists
-          docker run --rm \ # run trivy container with attached volumes from this runner
+          docker run --rm \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD/security/trivyignore.yaml":/.trivyignore.yaml:ro \
-            aquasec/trivy:${TRIVY_VERSION} image \
-            --severity CRITICAL \ # only critical vulnerability check 
-            --exit-code 1 \ # if critical vulnerability found, exit code will be 1 and action will fail
+            aquasec/trivy:"${TRIVY_VERSION}" image \
+            --severity CRITICAL \
+            --exit-code 1 \
             --ignore-unfixed \
             --ignorefile /.trivyignore.yaml \
             "$IMG"
