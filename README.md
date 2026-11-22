@@ -173,6 +173,8 @@ The platform uses a modular, least-privilege CI/CD architecture built on **GitHu
     * Executes microservice unit test suites (`zt-orders`, `zt-payments`) with `pytest` and `uv`.
   * **Outcome:** Enforces quality and security gates before merge; failures strictly block PR approval.
 
+    **Note:** When `pr.yml` runs for the first time, or when new images are added that do not yet have a digest and are not present in the registry, you must use `@sha256:` placeholders so the `Conftest` step passes. Replace them with the real digests after deployment.
+
 * **`release.yml` (Release Orchestrator)**
   * **Trigger:** Push of a semantic version tag (e.g., `v1.0.0`) verified to originate from the `main` branch.
   * **Role:** Acts as the controller without building artifacts directly; orchestrates modular reusable workflows and passes cryptographic digests between them.
