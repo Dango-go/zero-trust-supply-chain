@@ -1,0 +1,9 @@
+id: RT-03
+title: Deploy container image using mutable ':latest' tag
+threat: T3
+layer: Admission (Kyverno)
+policy: disallow-latest-tag
+rule: require-image-digest
+expected_outcome: denied
+expected_pattern: "disallow-latest-tag"
+fixture: redteam/fixtures/rt03-latest-tag-pod.yaml

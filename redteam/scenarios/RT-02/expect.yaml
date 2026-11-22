@@ -1,0 +1,9 @@
+id: RT-02
+title: Deploy image signed by unauthorized OIDC identity
+threat: T3, T13
+layer: Admission (Kyverno)
+policy: verify-images
+rule: verify-cosign-signature
+expected_outcome: denied
+expected_pattern: "verify-images"
+fixture: redteam/fixtures/rt02-wrong-identity-pod.yaml

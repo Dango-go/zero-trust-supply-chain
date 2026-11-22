@@ -1,0 +1,65 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: orders-to-payments-l7
+  namespace: zt-apps
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+spec:
+  description: "Allow zt-orders to call zt-payments strictly via POST /v1/charge (L7 HTTP enforcement)"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: zt-payments
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: zt-orders
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+          rules:
+            http:
+              - method: "POST"
+                path: "/v1/charge"
+              - method: "GET"
+                path: "/healthz"
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: orders-egress-to-payments-and-db
+  namespace: zt-apps
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+spec:
+  description: "Allow zt-orders egress to zt-payments on 8080 and PostgreSQL on 5432"
+  endpointSelector:
+    matchLabels:
+      app.kubernetes.io/name: zt-orders
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            app.kubernetes.io/name: zt-payments
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: zt-data
+            app.kubernetes.io/name: postgres
+      toPorts:
+        - ports:
+            - port: "5432"
+              protocol: TCP
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: vault
+            app.kubernetes.io/name: vault
+      toPorts:
+        - ports:
+            - port: "8200"
+              protocol: TCP

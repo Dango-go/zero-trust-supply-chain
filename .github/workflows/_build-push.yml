@@ -12,6 +12,9 @@ on:
       registry_url:
         description: "Full base URL of the Google Artifact Registry repository"
         value: ${{ jobs.build-images.outputs.registry_url }}
+      gar_token:
+        description: "Short-lived WIF access token for GAR"
+        value: ${{ jobs.build-images.outputs.gar_token }}
 
 permissions: {}
 
@@ -28,6 +31,7 @@ jobs:
       orders_digest: ${{ steps.build_orders.outputs.digest }}
       payments_digest: ${{ steps.build_payments.outputs.digest }}
       registry_url: ${{ steps.set_reg.outputs.registry_url }}
+      gar_token: ${{ steps.auth.outputs.access_token }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@4d991eb9b905ef189e4c376166672c3f2f230481 # v2.11.0
@@ -57,7 +61,7 @@ jobs:
       # Google Cloud Workload Identity Federation (WIF) Authentication
       - name: Authenticate to Google Cloud
         id: auth
-        uses: google-github-actions/auth@71fee0293a6c6463e043699db66ff70743b4695e # v2.1.8
+        uses: google-github-actions/auth@71f986410dfbc7added4569d411d040a91dc6935 # v2.1.8
         with:
           token_format: 'access_token'
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
@@ -81,8 +85,9 @@ jobs:
           push: true
           # settings for docker buildx
           outputs: type=image,name=${{ steps.set_reg.outputs.registry_url }}/zt-orders,push-by-digest=true,name-canonical=true
-          provenance: false
-          sbom: false
+          # push-by-digest=true - push image by digest (sha256:). name-canonical=true - full name of image with domain registry.
+          provenance: false # this is for slsa attestation (instead use SLSA GitHub Generator (slsa-framework/slsa-github-generator))
+          sbom: false # syft, cosign and so on are running on release pipeline. 
 
       # 2. Build and push zt-payments strictly BY DIGEST to GAR
       - name: Build and Push zt-payments by digest
@@ -97,10 +102,12 @@ jobs:
           sbom: false
 
       - name: Log Build Outputs
+        env:
+          REGISTRY_BASE: ${{ steps.set_reg.outputs.registry_url }}
+          ORDERS_DIGEST: ${{ steps.build_orders.outputs.digest }}
+          PAYMENTS_DIGEST: ${{ steps.build_payments.outputs.digest }}
         run: |
-          echo "=========================================================="
           echo "Build by Digest to Google Artifact Registry Completed"
-          echo "Registry Base:      ${{ steps.set_reg.outputs.registry_url }}"
-          echo "zt-orders digest:   ${{ steps.build_orders.outputs.digest }}"
-          echo "zt-payments digest: ${{ steps.build_payments.outputs.digest }}"
-          echo "=========================================================="
+          echo "Registry Base:      ${REGISTRY_BASE}"
+          echo "zt-orders digest:   ${ORDERS_DIGEST}"
+          echo "zt-payments digest: ${PAYMENTS_DIGEST}"

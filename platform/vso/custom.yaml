@@ -1,0 +1,85 @@
+global:
+  image:
+    repository: "hashicorp/vault-secrets-operator"
+    tag: "0.9.1"
+    pullPolicy: "IfNotPresent"
+
+# Controller configuration & high availability
+controller:
+  replicas: 2
+
+  # Leader election is mandatory for multi-replica HA deployments
+  leaderElection:
+    enabled: true
+
+  # Resource management (strictly bound)
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 256Mi
+
+  # Pod Security Standard (Restricted) compliance
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    runAsGroup: 65534
+    fsGroup: 65534
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+  # High availability distribution across separate nodes/zones
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: "topology.kubernetes.io/zone"
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: vault-secrets-operator
+    - maxSkew: 1
+      topologyKey: "kubernetes.io/hostname"
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: vault-secrets-operator
+
+  # Affinity to prevent co-locating replicas on the same node
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - vault-secrets-operator
+            topologyKey: kubernetes.io/hostname
+
+  # Disruption budget ensuring at least 1 replica is running during updates/evictions
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+# Prometheus metrics for observability and monitoring reconciliation latencies
+telemetry:
+  serviceMonitor:
+    enabled: false
+  prometheusRules:
+    enabled: false
+
+# Default Vault connection settings
+defaultVaultConnection:
+  enabled: true
+  address: "http://vault.vault.svc.cluster.local:8200"
+  skipTLSVerify: false

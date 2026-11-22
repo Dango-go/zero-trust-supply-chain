@@ -1,0 +1,22 @@
+# Kubescape Compliance Scan Configuration (NSA-CISA & MITRE ATT&CK)
+# Used by scripts/gen-evidence.sh (`make compliance`)
+apiVersion: kubescape.io/v1
+kind: ComplianceScanConfig
+metadata:
+  name: zt-cluster-compliance
+spec:
+  frameworks:
+    - nsa
+    - mitre
+  excludeNamespaces:
+    - kube-system
+    - kube-public
+    - kube-node-lease
+  targetNamespaces:
+    - zt-apps
+    - zt-data
+    - kyverno
+    - vault
+    - falco
+  failThresholdPercent: 15
+  outputFormat: json

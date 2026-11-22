@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=========================================================="
 echo " Zero-Trust Supply Chain: Image Signature & Attestation Check"
-echo "=========================================================="
 
 IMAGE_REF="${1:-}"
+# Error handling for empty image reference
 if [[ -z "${IMAGE_REF}" ]]; then
   echo "Usage: $0 <image-digest-reference>"
   echo "Example: $0 ghcr.io/org/zt-orders@sha256:..."
   exit 1
 fi
 
-echo "==> 1. Verifying Cosign Keyless Signature..."
+echo "==> 1. Verifying Cosign Keyless Signature of image..."
+# In _build-sign.yml, Sigstore Fulcio embedded the Issuer and Subject into the X.509 signing certificate
 cosign verify "${IMAGE_REF}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
 

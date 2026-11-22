@@ -1,0 +1,62 @@
+- rule: Shell Spawned in Zero-Trust Container
+  desc: Detects interactive or background shell process execution in production distroless containers
+  condition: >
+    spawned_process and container and
+    proc.name in (sh, bash, ash, dash, zsh) and
+    k8s.ns.name in ("zt-apps", "redteam")
+  output: >
+    [ZT-ALERT] Unauthorized shell spawned in container 
+    (user=%user.name ns=%k8s.ns.name pod=%k8s.pod.name container=%container.name 
+    cmd=%proc.cmdline parent=%proc.pname image=%container.image.repository:%container.image.tag)
+  priority: WARNING
+  tags: [zt, mitre_execution, T1059]
+
+- rule: Package Management Process Started in Container
+  desc: Detects package managers running inside running application containers
+  condition: >
+    spawned_process and container and
+    proc.name in (apt, apt-get, dpkg, apk, yum, dnf, rpm, pip, pip3, npm) and
+    k8s.ns.name in ("zt-apps", "redteam")
+  output: >
+    [ZT-ALERT] Package manager execution attempted in container 
+    (user=%user.name ns=%k8s.ns.name pod=%k8s.pod.name cmd=%proc.cmdline image=%container.image.repository)
+  priority: ERROR
+  tags: [zt, mitre_persistence, T1072]
+
+- rule: Write Below System Binary or Config Directories
+  desc: Detects unauthorized writes to critical immutable OS directories (/etc, /bin, /sbin, /usr)
+  condition: >
+    open_write and container and
+    (fd.name startswith "/etc/" or fd.name startswith "/bin/" or 
+     fd.name startswith "/sbin/" or fd.name startswith "/usr/") and
+    k8s.ns.name in ("zt-apps", "redteam")
+  output: >
+    [ZT-ALERT] File write attempted in system directory 
+    (user=%user.name file=%fd.name ns=%k8s.ns.name pod=%k8s.pod.name cmd=%proc.cmdline)
+  priority: ERROR
+  tags: [zt, mitre_defense_evasion, T1036]
+
+- rule: Read Sensitive K8s ServiceAccount Token
+  desc: Detects non-whitelisted processes reading the default k8s serviceaccount token
+  condition: >
+    open_read and container and
+    fd.name = "/var/run/secrets/kubernetes.io/serviceaccount/token" and
+    k8s.ns.name in ("zt-apps", "redteam") and
+    not allowed_zt_read_sa_token_procs
+  output: >
+    [ZT-ALERT] Suspicious read of serviceaccount token 
+    (proc=%proc.name cmd=%proc.cmdline ns=%k8s.ns.name pod=%k8s.pod.name file=%fd.name)
+  priority: WARNING
+  tags: [zt, mitre_credential_access, T1552]
+
+- rule: Unexpected Outbound Connection from App Container
+  desc: Detects external outbound network connection initialization from zt-apps pods
+  condition: >
+    outbound and container and
+    k8s.ns.name = "zt-apps" and
+    not internal_cluster_networks
+  output: >
+    [ZT-ALERT] Unexpected external outbound connection attempt 
+    (ns=%k8s.ns.name pod=%k8s.pod.name connection=%fd.name cmd=%proc.cmdline)
+  priority: WARNING
+  tags: [zt, mitre_command_and_control, T1071]

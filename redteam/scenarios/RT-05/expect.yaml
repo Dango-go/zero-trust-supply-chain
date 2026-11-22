@@ -1,0 +1,9 @@
+id: RT-05
+title: Deploy signed image missing SBOM/provenance or with CRITICAL CVE attestation
+threat: T4
+layer: Admission (Kyverno)
+policy: verify-images
+rule: verify-sbom-and-vuln-attestations, verify-slsa-provenance
+expected_outcome: denied
+expected_pattern: "verify-images"
+fixture: redteam/fixtures/rt05-missing-attestations-pod.yaml

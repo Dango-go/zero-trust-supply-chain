@@ -1,0 +1,8 @@
+id: RT-09
+title: Arbitrary internet egress and GCP metadata SSRF block
+threat: T8
+layer: Network (Cilium eBPF)
+policy: default-deny-all, payments-egress-tofqdns
+rule: fqdn-egress-allowlist-and-metadata-block
+expected_outcome: dropped_or_timeout
+expected_pattern: "BLOCKED_AS_EXPECTED|timed out|Name or service not known"

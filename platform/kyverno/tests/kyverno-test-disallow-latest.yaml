@@ -1,0 +1,29 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: test-disallow-latest-tag
+policies:
+  - ../policies/02-disallow-latest-tag.yaml
+resources:
+  - resources.yaml
+results:
+  - policy: disallow-latest-tag
+    rule: require-image-digest
+    resource: good-pinned-pod
+    kind: Pod
+    result: pass
+  - policy: disallow-latest-tag
+    rule: enforce-digest-syntax
+    resource: good-pinned-pod
+    kind: Pod
+    result: pass
+  - policy: disallow-latest-tag
+    rule: require-image-digest
+    resource: bad-latest-pod
+    kind: Pod
+    result: fail
+  - policy: disallow-latest-tag
+    rule: enforce-digest-syntax
+    resource: bad-latest-pod
+    kind: Pod
+    result: fail

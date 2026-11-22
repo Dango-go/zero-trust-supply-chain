@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: redteam
+  labels:
+    name: redteam
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: event-generator-rt10
+  namespace: redteam
+  labels:
+    app.kubernetes.io/name: event-generator
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    runAsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: event-generator
+      image: falcosecurity/event-generator:0.12.0
+      args:
+        - run
+        - syscall
+        - "ReadSensitiveFileUntrusted"
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi

@@ -1,0 +1,9 @@
+id: RT-10
+title: Runtime syscall threat detection by Falco eBPF
+threat: T9
+layer: Runtime (Falco Modern eBPF)
+policy: platform/falco/rules/02-redteam.yaml
+rule: RedTeam Synthetic Attack Detected
+expected_outcome: detected
+expected_pattern: "REDTEAM-SIMULATION|ZT-ALERT|Warning|Notice"
+fixture: redteam/fixtures/rt10-event-generator-pod.yaml

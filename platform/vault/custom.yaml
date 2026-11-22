@@ -1,0 +1,83 @@
+global:
+  enabled: true
+  tlsDisable: false
+
+server:
+  image:
+    repository: "hashicorp/vault"
+    tag: "1.18.2"
+
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: "standard-rwo"
+
+  auditStorage:
+    enabled: true
+    size: 5Gi
+    storageClass: "standard-rwo"
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+      add:
+        - IPC_LOCK
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                    - vault
+            topologyKey: kubernetes.io/hostname
+
+ui:
+  enabled: true
+  serviceType: "ClusterIP"
+  servicePort: 8200
+
+# Vault Secrets Operator integration
+vso:
+  enabled: true

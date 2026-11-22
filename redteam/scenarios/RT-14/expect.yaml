@@ -1,0 +1,9 @@
+id: RT-14
+title: Scanner isolation and stale CVE exception rejection
+threat: T11
+layer: Build / Gate (GitHub Actions)
+policy: .github/workflows/_scan-gate.yml
+rule: scanner-least-privilege-and-trivyignore-expiry
+expected_outcome: isolated_and_expired_rejected
+expected_pattern: "expired|isolated|PASS"
+fixture: redteam/fixtures/rt14-expired-trivyignore.yaml

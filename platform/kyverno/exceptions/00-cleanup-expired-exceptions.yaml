@@ -1,0 +1,23 @@
+apiVersion: kyverno.io/v2beta1
+kind: ClusterCleanupPolicy
+metadata:
+  name: cleanup-expired-policy-exceptions
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+spec:
+  # Check every 10 minutes for expired break-glass exceptions
+  schedule: "*/10 * * * *"
+  match:
+    any:
+      - resources:
+          kinds:
+            - PolicyException
+          namespaces:
+            - kyverno
+  conditions:
+    all:
+      # Compare current UTC time with zero-trust.io/expires-at annotation
+      - key: "{{ time_since('', '{{ target.metadata.annotations.\"zero-trust.io/expires-at\" }}', '') }}"
+        operator: GreaterThan
+        value: 0s

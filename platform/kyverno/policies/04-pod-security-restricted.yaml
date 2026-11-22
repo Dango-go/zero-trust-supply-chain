@@ -1,0 +1,85 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pod-security-restricted
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+  annotations:
+    policies.kyverno.io/title: "Enforce Restricted Pod Security Standard"
+    policies.kyverno.io/category: "Pod Security"
+    policies.kyverno.io/severity: "high"
+    policies.kyverno.io/description: >
+      Enforces the Restricted Pod Security Standard: non-root users, dropping all capabilities,
+      read-only root filesystem, disabling privilege escalation, and restricting host namespaces.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-run-as-non-root
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      validate:
+        message: "Running containers as root is forbidden. runAsNonRoot must be true."
+        pattern:
+          spec:
+            =(securityContext):
+              runAsNonRoot: true
+            containers:
+              - =(securityContext):
+                  runAsNonRoot: true
+
+    - name: require-readonly-rootfs
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      validate:
+        message: "Containers must use a read-only root filesystem (readOnlyRootFilesystem: true)."
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true
+
+    - name: drop-all-capabilities
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      validate:
+        message: "All Linux capabilities must be dropped (capabilities: drop: [ALL])."
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  capabilities:
+                    drop:
+                      - ALL
+
+    - name: disallow-privilege-escalation
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      validate:
+        message: "Privilege escalation is forbidden (allowPrivilegeEscalation: false)."
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  allowPrivilegeEscalation: false

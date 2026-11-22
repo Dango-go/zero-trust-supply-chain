@@ -1,3 +1,4 @@
+# Result of workflow: 2 files (vuln-<service-name>.json)
 name: _scan-gate
 
 on:
@@ -39,7 +40,7 @@ jobs:
 
       - name: Authenticate to Google Cloud (WIF)
         id: auth
-        uses: google-github-actions/auth@71fee0293a6c6463e043699db66ff70743b4695e # v2.1.8
+        uses: google-github-actions/auth@71f986410dfbc7added4569d411d040a91dc6935 # v2.1.8
         with:
           token_format: 'access_token'
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
@@ -54,7 +55,7 @@ jobs:
 
         # SBOM
       - name: Install Grype (Secondary independent scanner)
-        uses: anchore/scan-action/download-grype@7c05671ae3be166aeb157bac2a5df38168345c06 # v6.1.0
+        uses: anchore/scan-action/download-grype@7c05671ae9be166aeb155bad2d7df9121823df32 # v6.1.0
 
  
       # Check security/trivyignore.yaml for expired exceptions 
@@ -103,17 +104,17 @@ jobs:
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD/reports":/reports \
             aquasec/trivy:${TRIVY_VERSION} image \
-            --format cosign-vuln \
+            --format cosign-vuln \ # a report in the Cosign Vulnerability Predicate format, which Cosign itself will require
             --output /reports/vuln-orders.json \
-            "$IMG"
+            "$IMG" # target image to trivy scan
 
           # 2. Hard Gate: Fail if any CRITICAL vulnerability exists
-          docker run --rm \
+          docker run --rm \ # run trivy container with attached volumes from this runner
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD/security/trivyignore.yaml":/.trivyignore.yaml:ro \
             aquasec/trivy:${TRIVY_VERSION} image \
-            --severity CRITICAL \
-            --exit-code 1 \
+            --severity CRITICAL \ # only critical vulnerability check 
+            --exit-code 1 \ # if critical vulnerability found, exit code will be 1 and action will fail
             --ignore-unfixed \
             --ignorefile /.trivyignore.yaml \
             "$IMG"

@@ -58,7 +58,7 @@ spec:
       containers:
         - name: zt-orders
           # Must be pinned by digest in production (or populated by CI/CD)
-          image: europe-west1-docker.pkg.dev/security-supply-chain/zero-trust/zt-orders:latest
+          image: europe-west1-docker.pkg.dev/security-supply-chain/zero-trust/zt-orders@sha256:0000000000000000000000000000000000000000000000000000000000000001
           imagePullPolicy: IfNotPresent
 
           ports:
@@ -133,5 +133,5 @@ spec:
           emptyDir: {}
         # EmptyDir or VaultDynamicSecret secret projection
         - name: vault-secrets
-          emptyDir:
-            medium: Memory
+          secret:
+            secretName: orders-db-creds

@@ -59,7 +59,7 @@ spec:
       containers:
         - name: zt-payments
           # Must be pinned by digest in production (or populated by CI/CD kustomize/helm)
-          image: europe-west1-docker.pkg.dev/security-supply-chain/zero-trust/zt-payments:latest
+          image: europe-west1-docker.pkg.dev/security-supply-chain/zero-trust/zt-payments@sha256:0000000000000000000000000000000000000000000000000000000000000002
           imagePullPolicy: IfNotPresent
 
           ports:

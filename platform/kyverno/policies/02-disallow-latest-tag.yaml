@@ -1,0 +1,46 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+  annotations:
+    policies.kyverno.io/title: "Disallow Latest Tag and Enforce Pinned Digests"
+    policies.kyverno.io/category: "Supply Chain Security"
+    policies.kyverno.io/severity: "medium"
+    policies.kyverno.io/description: >
+      Enforces deployment by immutable cryptographic digest (sha256) instead of mutable tags.
+      Prevents the use of :latest tag in production namespaces.
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: require-image-digest
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      validate:
+        message: "Images with ':latest' tag are strictly forbidden. You must pin images using '@sha256:' digest."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
+    - name: enforce-digest-syntax
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      validate:
+        message: "All container images must be referenced using immutable sha256 digest."
+        pattern:
+          spec:
+            containers:
+              - image: "*@sha256:*"

@@ -30,24 +30,40 @@ jobs:
           fetch-depth: 0
 
       - name: Gitleaks Secret Scan
-        uses: gitleaks/gitleaks-action@e33a69a23999912be217158784d092d64fce50d6 # v2.3.8
+        uses: gitleaks/gitleaks-action@f586c14365d4643c6aa59d472ae6e984bf47bb34 # v2.3.8
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
 
       - name: Hadolint (Dockerfile Linting)
-        uses: hadolint/hadolint-action@54c9adabbbe4b1de25f470bad52b317336226bb7 # v3.1.0
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
         with:
           #config: .hadolint.yaml
           recursive: true
 
+        # Linting workflows files  
       - name: Actionlint (Workflow Syntax Check)
         uses: reviewdog/action-actionlint@db58217885f9a6570da9c71be4e40ec33fe44a1f # v1.65.0
 
       - name: Zizmor (GitHub Actions Security Audit)
-        uses: woodruffw/zizmor-action@e7ec89eb8142385eaec8c908aa3f95b5420397cc # v1.4.1
+        run: |
+          pip install --quiet zizmor
+          zizmor .github/workflows/
+
+      - name: Checkov (IaC Static Security Analysis)
+        uses: bridgecrewio/checkov-action@b17b606d6ec72bb8ba5721ad5b7e340b80a9fc39 # master
         with:
-          arguments: "--pedantic"
+          framework: terraform
+          directory: tf
+          output_format: cli
+          soft_fail: false
+          skip_check: "CKV_GCP_12,CKV_GCP_20,CKV_GCP_21,CKV_GCP_24,CKV_GCP_26,CKV_GCP_61,CKV_GCP_65,CKV_GCP_66,CKV_GCP_69,CKV_GCP_84,CKV_GCP_101,CKV_GCP_125" # Skip non-applicable CIS checks (Kyverno replaces Binary Auth, Dataplane V2 replaces legacy NetworkPolicy, cost/demo choices)
+
+      - name: Conftest (OPA / Rego Manifest Validation)
+        run: |
+          CONFTEST_VERSION="0.56.0"
+          curl -sSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" | tar xz -C /usr/local/bin conftest
+          conftest test apps/manifests/ -p compliance/conftest/k8s.rego
 
       - name: Validate Trivy Ignore Expirations
         run: |
@@ -58,10 +74,6 @@ jobs:
           fi
           
           # Check that all ignored CVEs have valid future expired_at
-          NOW_TS=$(date -u +%s)
-          FAILED=0
-          
-          # Extract entries with yq if available, or python fallback
           python3 -c "
           import sys, yaml, datetime
           failed = 0

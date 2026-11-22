@@ -1,0 +1,9 @@
+id: RT-04
+title: Replay attack with revoked or stale signed image digest
+threat: T12
+layer: Admission (Kyverno)
+policy: deny-revoked-digests
+rule: check-revoked-digests
+expected_outcome: denied
+expected_pattern: "deny-revoked-digests|verify-images"
+fixture: redteam/fixtures/rt04-revoked-digest-pod.yaml

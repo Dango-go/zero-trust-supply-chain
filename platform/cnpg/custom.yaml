@@ -1,0 +1,34 @@
+crds:
+  create: true
+
+config:
+  data:
+    INHERITED_LABELS: "app.kubernetes.io/part-of,security-tier"
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  capabilities:
+    drop:
+      - ALL
+
+monitoring:
+  podMonitorEnabled: true
+
+serviceAccount:
+  create: true
+  name: "cnpg-manager"

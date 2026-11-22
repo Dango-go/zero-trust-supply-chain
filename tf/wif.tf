@@ -1,3 +1,4 @@
+# SA for image release pipeline
 resource "google_service_account" "gh_actions" {
   account_id   = "gh-actions-image-releaser"
   display_name = "GitHub Actions Image Releaser"
@@ -14,6 +15,7 @@ resource "google_iam_workload_identity_pool" "github_pool" {
   display_name              = "GitHub Actions Pool for WIF"
 }
 
+# OIDC-provider which trusts github's OIDC tokens
 resource "google_iam_workload_identity_pool_provider" "github_provider" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.github_pool.workload_identity_pool_id
   workload_identity_pool_provider_id = "github-provider" # resource id
@@ -28,7 +30,7 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
     issuer_uri = "https://token.actions.githubusercontent.com" # url of public keys to decrypt oidc token
   }
 }
-# Access for GitHub impersonate this sa
+# Access for GitHub impersonate this sa. 
 resource "google_service_account_iam_member" "wif_user" {
   service_account_id = google_service_account.gh_actions.name
   role               = "roles/iam.workloadIdentityUser"

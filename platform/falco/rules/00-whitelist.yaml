@@ -1,0 +1,11 @@
+- macro: user_known_contact_k8s_api_server_activities
+  condition: >
+    (k8s.ns.name in (kube-system, cnpg-system, kyverno, argocd, monitoring, vault, gmp-system))
+
+- macro: allowed_zt_read_sa_token_procs
+  condition: >
+    (proc.name in (python, python3, zt-orders, zt-payments))
+
+- macro: internal_cluster_networks
+  condition: >
+    (fd.sip in ("127.0.0.1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))

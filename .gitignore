@@ -1,5 +1,6 @@
 PLAN.md
 BASE.md
+README.md
 .env
 uv.lock
 .venv
@@ -7,6 +8,7 @@ __pycache__
 *.pyc
 .idea
 .vscode
+redteam/
 
 # Terraform
 */terraform.tfstate
@@ -14,3 +16,6 @@ __pycache__
 */terraform.tfvars
 */*.tfstate.backup
 */.terraform
+
+# Vault Secrets
+.vault-init.json

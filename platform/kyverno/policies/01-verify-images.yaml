@@ -1,0 +1,121 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: verify-images
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: zero-trust
+  annotations:
+    policies.kyverno.io/title: "Verify OCI Signatures, SBOM, Vulnerabilities, and SLSA Provenance"
+    policies.kyverno.io/category: "Supply Chain Security"
+    policies.kyverno.io/severity: "critical"
+    policies.kyverno.io/description: >
+      Enforces cryptographic verification of container images before deployment:
+      1) Sigstore/Cosign keyless signature with Fulcio & Rekor transparency log.
+      2) CycloneDX SBOM attestation with non-empty components.
+      3) Vulnerability scan attestation with 0 CRITICAL CVEs and 72-hour freshness window.
+      4) SLSA L3 Build Provenance emitted from authorized GitHub generator workflow.
+spec:
+  validationFailureAction: Enforce
+  webhookTimeoutSeconds: 30
+  rules:
+    # 1. Cosign Signature Verification
+    - name: verify-cosign-signature
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      verifyImages:
+        - type: Cosign
+          mutateDigest: true
+          imageReferences:
+            - "*-docker.pkg.dev/*/*"
+            - "europe-west1-docker.pkg.dev/*/*"
+          attestors:
+            - entries:
+                - keyless:
+                    issuer: "https://token.actions.githubusercontent.com"
+                    subjectRegExp: '^https://github.com/.*/\.github/workflows/_build-sign\.yml@refs/tags/v.*$'
+                    rekor:
+                      url: "https://rekor.sigstore.dev"
+
+    # 2. SBOM and Vulnerability Attestation Verification (0 CRITICAL + 72h Freshness)
+    - name: verify-sbom-and-vuln-attestations
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      verifyImages:
+        - type: Cosign
+          mutateDigest: true
+          imageReferences:
+            - "*-docker.pkg.dev/*/*"
+            - "europe-west1-docker.pkg.dev/*/*"
+          attestations:
+            - type: "https://cyclonedx.org/bom"
+              attestors:
+                - entries:
+                    - keyless:
+                        issuer: "https://token.actions.githubusercontent.com"
+                        subjectRegExp: '^https://github.com/.*/\.github/workflows/_build-sign\.yml@refs/tags/v.*$'
+                        rekor:
+                          url: "https://rekor.sigstore.dev"
+              conditions:
+                - all:
+                    - key: "{{ components[] | length(@) }}"
+                      operator: GreaterThan
+                      value: 0
+            - type: "https://cosign.sigstore.dev/attestation/vuln/v1"
+              attestors:
+                - entries:
+                    - keyless:
+                        issuer: "https://token.actions.githubusercontent.com"
+                        subjectRegExp: '^https://github.com/.*/\.github/workflows/_build-sign\.yml@refs/tags/v.*$'
+                        rekor:
+                          url: "https://rekor.sigstore.dev"
+              conditions:
+                - all:
+                    # 0 CRITICAL vulnerabilities allowed
+                    - key: "{{ scanner.result.Results[].Vulnerabilities[?Severity=='CRITICAL'][] | length(@) }}"
+                      operator: Equals
+                      value: 0
+                    # Freshness gate: scan must be completed within last 72 hours (Replay attack defense)
+                    - key: "{{ time_since('', '{{ metadata.scanFinishedOn }}', '') }}"
+                      operator: LessThan
+                      value: 72h
+
+    # 3. SLSA L3 Provenance Verification
+    - name: verify-slsa-provenance
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - zt-apps
+      verifyImages:
+        - type: Cosign
+          mutateDigest: true
+          imageReferences:
+            - "*-docker.pkg.dev/*/*"
+            - "europe-west1-docker.pkg.dev/*/*"
+          attestations:
+            - type: "https://slsa.dev/provenance/v0.2"
+              attestors:
+                - entries:
+                    - keyless:
+                        issuer: "https://token.actions.githubusercontent.com"
+                        subjectRegExp: '^https://github.com/slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@refs/tags/v2\..*$'
+                        rekor:
+                          url: "https://rekor.sigstore.dev"
+              conditions:
+                - all:
+                    - key: "{{ invocation.configSource.uri }}"
+                      operator: Equals
+                      value: "git+https://github.com/*/*@refs/tags/*"

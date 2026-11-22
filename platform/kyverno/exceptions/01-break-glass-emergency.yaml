@@ -1,0 +1,32 @@
+apiVersion: kyverno.io/v2
+kind: PolicyException
+metadata:
+  name: break-glass-emergency-hotfix
+  namespace: kyverno
+  labels:
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+    security-tier: break-glass
+  annotations:
+    zero-trust.io/reason: "Production incident INC-9812 - Emergency hotfix without signature"
+    zero-trust.io/owner: "secops-oncall@company.com"
+    zero-trust.io/approved-by: "security-lead"
+    zero-trust.io/created-at: "2026-11-08T18:00:00Z"
+    zero-trust.io/expires-at: "2026-11-08T22:00:00Z"
+spec:
+  exceptions:
+    - policyName: verify-images
+      ruleNames:
+        - verify-cosign-signature
+        - verify-sbom-and-vuln-attestations
+        - verify-slsa-provenance
+  match:
+    any:
+      - resources:
+          kinds:
+            - Pod
+            - Deployment
+          namespaces:
+            - zt-apps
+          names:
+            - zt-orders*
+            - zt-payments*
