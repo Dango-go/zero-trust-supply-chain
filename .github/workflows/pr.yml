@@ -41,6 +41,7 @@ jobs:
           #config: .hadolint.yaml
           recursive: true
 
+        # Linting workflows files  
       - name: Actionlint (Workflow Syntax Check)
         uses: reviewdog/action-actionlint@db58217885f9a6570da9c71be4e40ec33fe44a1f # v1.65.0
 
@@ -73,10 +74,6 @@ jobs:
           fi
           
           # Check that all ignored CVEs have valid future expired_at
-          NOW_TS=$(date -u +%s)
-          FAILED=0
-          
-          # Extract entries with yq if available, or python fallback
           python3 -c "
           import sys, yaml, datetime
           failed = 0

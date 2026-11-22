@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 from src.main import app
@@ -30,7 +30,7 @@ def test_readyz_unhealthy(mock_is_ready):
 def test_create_order_success(mock_post, mock_create_order, mock_is_ready):
     mock_is_ready.return_value = True
     # Mock successful response from zt-payments
-    mock_resp = AsyncMock()
+    mock_resp = MagicMock()
     mock_resp.status_code = 201
     mock_resp.json.return_value = {
         "status": "CONFIRMED",
