@@ -102,6 +102,7 @@ jobs:
           
           # 1. Generate cosign-vuln predicate for Cosign attestation
           docker run --rm \
+            -v "$HOME/.docker/config.json:/root/.docker/config.json:ro" \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD/reports":/reports \
             aquasec/trivy:"${TRIVY_VERSION}" image \
@@ -111,6 +112,7 @@ jobs:
 
           # 2. Hard Gate: Fail if any CRITICAL vulnerability exists
           docker run --rm \
+            -v "$HOME/.docker/config.json:/root/.docker/config.json:ro" \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD/security/trivyignore.yaml":/.trivyignore.yaml:ro \
             aquasec/trivy:"${TRIVY_VERSION}" image \
@@ -134,6 +136,7 @@ jobs:
           
           # 1. Generate cosign-vuln predicate for Cosign attestation
           docker run --rm \
+            -v "$HOME/.docker/config.json:/root/.docker/config.json:ro" \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD/reports":/reports \
             aquasec/trivy:${TRIVY_VERSION} image \
@@ -143,6 +146,7 @@ jobs:
 
           # 2. Hard Gate: Fail if any CRITICAL vulnerability exists
           docker run --rm \
+            -v "$HOME/.docker/config.json:/root/.docker/config.json:ro" \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -v "$PWD/security/trivyignore.yaml":/.trivyignore.yaml:ro \
             aquasec/trivy:${TRIVY_VERSION} image \
