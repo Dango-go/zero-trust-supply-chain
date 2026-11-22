@@ -425,4 +425,6 @@ Role in project:
 
 ---
 
+Також в проєкті додано інтеграцію алертів та нотифікацій в слек для Falcosidekick, GitHub Actions, Kyverno, Trivy Operator (через Policy Reporter), Grafana Loki + Alertmanager — через правила Loki Ruler (або Grafana Alerting).
+
 ### Chaos Engineering && Security tests
