@@ -55,6 +55,7 @@ jobs:
   provenance:
     name: SLSA Build L3 Provenance (${{ matrix.target.name }})
     needs: [build, scan]
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         target:
@@ -63,16 +64,16 @@ jobs:
           - name: zt-payments
             digest: ${{ needs.build.outputs.payments_digest }}
     permissions:
-      actions: read
       id-token: write
-      packages: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0 # zizmor: ignore[unpinned-uses]
-    with:
-      image: ${{ needs.build.outputs.registry_url }}/${{ matrix.target.name }}
-      digest: ${{ matrix.target.digest }}
-      registry-username: "oauth2accesstoken"
-    secrets:
-      registry-password: ${{ needs.build.outputs.gar_token }}
+      attestations: write
+      contents: read
+    steps:
+      - name: Generate SLSA Build Provenance
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-name: ${{ needs.build.outputs.registry_url }}/${{ matrix.target.name }}
+          subject-digest: ${{ matrix.target.digest }}
+          push-to-registry: false
 
  
   # 5. SIGN: Keyless Cosign Signing + Attestations (SBOM + Scan Report)
