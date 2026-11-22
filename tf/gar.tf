@@ -34,6 +34,23 @@ resource "google_artifact_registry_repository" "zero_trust" {
     managed-by  = "terraform"
     security    = "zero-trust"
   }
+
+
+  cleanup_policies {
+    id     = "keep-minimum-versions"
+    action = "KEEP"
+    most_recent_versions {
+      keep_count = 5
+    }
+  }
+
+  cleanup_policies {
+    id     = "delete-old-artifacts"
+    action = "DELETE"
+    condition {
+      older_than = "2592000s"
+    }
+  }
 }
 
 # Optional: Public read access for admission verification & Kind cluster pulling
