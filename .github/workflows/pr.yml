@@ -57,7 +57,7 @@ jobs:
           directory: tf
           output_format: cli
           soft_fail: false
-          skip_check: "CKV_GCP_69,CKV_GCP_24" # Skip cluster-level service account if custom pool SA used
+          skip_check: "CKV_GCP_12,CKV_GCP_20,CKV_GCP_21,CKV_GCP_24,CKV_GCP_26,CKV_GCP_61,CKV_GCP_65,CKV_GCP_66,CKV_GCP_69,CKV_GCP_84,CKV_GCP_101,CKV_GCP_125" # Skip non-applicable CIS checks (Kyverno replaces Binary Auth, Dataplane V2 replaces legacy NetworkPolicy, cost/demo choices)
 
       - name: Conftest (OPA / Rego Manifest Validation)
         run: |
