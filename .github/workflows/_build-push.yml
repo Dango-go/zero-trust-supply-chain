@@ -102,8 +102,12 @@ jobs:
           sbom: false
 
       - name: Log Build Outputs
+        env:
+          REGISTRY_BASE: ${{ steps.set_reg.outputs.registry_url }}
+          ORDERS_DIGEST: ${{ steps.build_orders.outputs.digest }}
+          PAYMENTS_DIGEST: ${{ steps.build_payments.outputs.digest }}
         run: |
           echo "Build by Digest to Google Artifact Registry Completed"
-          echo "Registry Base:      ${{ steps.set_reg.outputs.registry_url }}"
-          echo "zt-orders digest:   ${{ steps.build_orders.outputs.digest }}"
-          echo "zt-payments digest: ${{ steps.build_payments.outputs.digest }}"
+          echo "Registry Base:      ${REGISTRY_BASE}"
+          echo "zt-orders digest:   ${ORDERS_DIGEST}"
+          echo "zt-payments digest: ${PAYMENTS_DIGEST}"

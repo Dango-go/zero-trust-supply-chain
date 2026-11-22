@@ -15,7 +15,7 @@ jobs:
   # 1. BUILD: Build container image and push strictly BY DIGEST to GAR 
   build:
     name: Build & Push by Digest (GAR)
-    uses: ./.github/workflows/_build-push.yml
+    uses: $/.github/workflows/_build-push.yml
     permissions:
       contents: read
       id-token: write # Required for Google Cloud Workload Identity Federation (WIF)
@@ -25,7 +25,7 @@ jobs:
   sbom:
     name: Generate SBOM
     needs: build
-    uses: ./.github/workflows/_sbom.yml
+    uses: $/.github/workflows/_sbom.yml
     permissions:
       contents: read
       id-token: write # For WIF to pull image from GAR
@@ -40,7 +40,7 @@ jobs:
   scan:
     name: Vulnerability Gate
     needs: [build, sbom]
-    uses: ./.github/workflows/_scan-gate.yml
+    uses: $/.github/workflows/_scan-gate.yml
     permissions:
       contents: read
       id-token: write # For WIF read-only pull from GAR
@@ -79,7 +79,7 @@ jobs:
   sign:
     name: Cosign Keyless Sign & Attest
     needs: [build, sbom, scan, provenance]
-    uses: ./.github/workflows/_build-sign.yml
+    uses: $/.github/workflows/_build-sign.yml
     permissions:
       id-token: write
       contents: read
