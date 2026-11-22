@@ -58,6 +58,12 @@ jobs:
           soft_fail: false
           skip_check: "CKV_GCP_69,CKV_GCP_24" # Skip cluster-level service account if custom pool SA used
 
+      - name: Conftest (OPA / Rego Manifest Validation)
+        run: |
+          CONFTEST_VERSION="0.56.0"
+          curl -sSL "https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz" | tar xz -C /usr/local/bin conftest
+          conftest test apps/manifests/ -p compliance/conftest/k8s.rego
+
       - name: Validate Trivy Ignore Expirations
         run: |
           IGNORE_FILE="security/trivyignore.yaml"

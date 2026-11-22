@@ -1,0 +1,9 @@
+id: RT-06
+title: Deploy privileged Pod with root, hostNetwork, and hostPath
+threat: T7
+layer: Admission (PSA + Kyverno)
+policy: pod-security-restricted
+rule: require-run-as-non-root, require-readonly-rootfs, drop-all-capabilities
+expected_outcome: denied
+expected_pattern: "pod-security-restricted|violates PodSecurity"
+fixture: redteam/fixtures/rt06-privileged-pod.yaml

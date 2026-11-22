@@ -1,0 +1,9 @@
+id: RT-12
+title: Repository governance and configuration drift detection
+threat: T1, T13
+layer: Source (Conftest Rego & GitHub Rulesets)
+policy: compliance/conftest/repo.rego
+rule: enforce_admins, allow_force_pushes, immutable_tags
+expected_outcome: drift_detected_and_rejected
+expected_pattern: "FAIL|enforce_admins|allow_force_pushes"
+fixture: redteam/fixtures/rt12-drifted-baseline.json

@@ -11,7 +11,8 @@ if [[ -z "${IMAGE_REF}" ]]; then
   exit 1
 fi
 
-echo "==> 1. Verifying Cosign Keyless Signature..."
+echo "==> 1. Verifying Cosign Keyless Signature of image..."
+# In _build-sign.yml, Sigstore Fulcio embedded the Issuer and Subject into the X.509 signing certificate
 cosign verify "${IMAGE_REF}" \
   --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
 

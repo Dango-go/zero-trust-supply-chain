@@ -1,0 +1,9 @@
+id: RT-13
+title: CI workflow tampering and template injection detection
+threat: T2
+layer: Build (GitHub Actions / Zizmor / Actionlint)
+policy: .github/workflows/pr.yml
+rule: pinned-actions-and-no-template-injection
+expected_outcome: vulnerable_workflow_rejected
+expected_pattern: "write-all|pull_request_target|template-injection|unpinned-uses"
+fixture: redteam/fixtures/rt13-vulnerable-workflow.yml

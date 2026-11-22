@@ -1,0 +1,9 @@
+id: RT-07
+title: Deploy container image from untrusted public registry
+threat: T3
+layer: Admission (Kyverno)
+policy: restrict-registries
+rule: validate-registries
+expected_outcome: denied
+expected_pattern: "restrict-registries"
+fixture: redteam/fixtures/rt07-untrusted-registry-pod.yaml

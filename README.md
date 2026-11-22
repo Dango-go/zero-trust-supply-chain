@@ -6,7 +6,7 @@
 
 ## Preview
 
-*(Буде додано: архітектурна діаграма, демонстрація блокування unsigned/replay образів, Falco-алерти та Hubble-трафік)*
+*(To be added: architectural diagram, demo of blocking unsigned/replay images, Falco alerts, and Hubble traffic)*
 
 ---
 
@@ -373,13 +373,13 @@ Role in project:
 
 ### Cilium eBPF && Policies
 Preview:
-Керований GKE Dataplane V2 (`ADVANCED_DATAPATH` у Terraform), що розгортає Cilium eBPF на рівні ядра Linux без окремого Helm-чарту. Усі мережеві політики розташовані в `platform/cilium/` (`apiVersion: cilium.io/v2`).
+Managed GKE Dataplane V2 (`ADVANCED_DATAPATH` in Terraform), deploying Cilium eBPF at the Linux kernel level without a separate Helm chart. All network policies reside in `platform/cilium/` (`apiVersion: cilium.io/v2`).
 
 Role in project:
-1. **`00-default-deny.yaml`:** Повне блокування всього Ingress та Egress трафіку в `zt-apps` за замовчуванням.
-2. **`01-dns-allow.yaml`:** Дозвіл виходу лише на `kube-dns` (порт 53) із активацією DNS-проксі Cilium.
-3. **`02-orders-to-payments-l7.yaml`:** L7 HTTP фільтрація (`zt-orders` ➔ `zt-payments` лише `POST /v1/charge` та `GET /healthz`) + доступ до PostgreSQL (порт 5432).
-4. **`03-payments-tofqdns.yaml`:** Whitelisting вихідного трафіку лише на дозволені домени платіжних шлюзів (`toFQDNs`) та блокування доступу до GCP metadata (`169.254.169.254`).
+1. **`00-default-deny.yaml`:** Completely blocks all Ingress and Egress traffic in `zt-apps` by default.
+2. **`01-dns-allow.yaml`:** Allows egress solely to `kube-dns` (port 53) while activating the Cilium DNS proxy.
+3. **`02-orders-to-payments-l7.yaml`:** L7 HTTP filtering (`zt-orders` ➔ `zt-payments` strictly `POST /v1/charge` and `GET /healthz`) + access to PostgreSQL (port 5432).
+4. **`03-payments-tofqdns.yaml`:** Egress whitelisting strictly to approved payment gateway domains (`toFQDNs`) and blocking access to GCP metadata (`169.254.169.254`).
 
 ---
 
@@ -392,20 +392,34 @@ Role in project:
 Усі автоматизовані скрипти платформи (розгорнуті та заплановані згідно з `PLAN.md`, `BASE.md`, `BASE-1.md`):
 
 #### 1. Bootstrap, Infrastructure & Vault (`scripts/`)
-* **`scripts/cluster-init.sh`** *(Реалізовано)* — головний оркестратор розгортання платформи з нуля на GKE: додає Helm-репозиторії, запускає Terraform (`tf/`), піднімає `cert-manager`, `Kyverno HA` (+ політики й винятки), `Falco + Falcosidekick`, `Trivy Operator`, `CloudNativePG`, `Vault HA`, `VSO` (+ CRD), `Grafana Loki`, активує `Hubble`, накладає `CiliumNetworkPolicy` та деплоїть мікросервіси `zt-orders` і `zt-payments`. Застосовується для повної інсталяції платформи у вже створеному заздалегідь кластері. 
+* **`scripts/cluster-init.sh`** *(Обов'язковий)* — головний оркестратор розгортання платформи з нуля на GKE: додає Helm-репозиторії, запускає Terraform (`tf/`), піднімає `cert-manager`, `Kyverno HA` (+ політики й винятки), `Falco + Falcosidekick`, `Trivy Operator`, `CloudNativePG`, `Vault HA`, `VSO` (+ CRD), `Grafana Loki`, активує `Hubble`, накладає `CiliumNetworkPolicy` та деплоїть мікросервіси `zt-orders` і `zt-payments`. Застосовується для повної інсталяції платформи у вже створеному заздалегідь кластері. 
 
-* **`scripts/setup-vault.sh`** *(Реалізовано)* — ініціалізація та розпечатування (unseal) кластера HashiCorp Vault HA, увімкнення `Kubernetes Auth`, застосування least-privilege HCL-політики `orders-rw.hcl`, прив'язка ролі `orders-role` до `zt-orders-sa` та налаштування `PostgreSQL Database Secrets Engine` для видачі динамічних креденшіалів із TTL 1h і `revocation_statements`. Автоматично запускається під час етапу 9 виконання scripts/cluster-init.sh.
+* **`scripts/setup-vault.sh`** *(Обов'язковий)* — ініціалізація та розпечатування (unseal) кластера HashiCorp Vault HA, увімкнення `Kubernetes Auth`, застосування least-privilege HCL-політики `orders-rw.hcl`, прив'язка ролі `orders-role` до `zt-orders-sa` та налаштування `PostgreSQL Database Secrets Engine` для видачі динамічних креденшіалів із TTL 1h і `revocation_statements`. Автоматично запускається під час етапу 9 виконання scripts/cluster-init.sh.
 
 #### 2. Verification, Compliance & Drift Detection (`scripts/`)
-* **`scripts/verify.sh`** *(Реалізовано)* — локальна/CI перевірка криптографічної цілісності образів: валідує безключовий підпис `Cosign` (OIDC identity + Rekor transparency log) та наявність атестацій (`SBOM`, `vuln`, `SLSA`). Необхідно передати повний шлях образу з @sha256.
-* **`scripts/policy-drift.sh`** *(Заплановано / Порожній)* — перевірка дрифту налаштувань безпеки GitHub (Branch Protection, Tag Protection, Environments) через GitHub API шляхом звірки з еталоном `security/repo-baseline.json` (запускається в `nightly.yml`).
-* **`scripts/gen-evidence.sh`** *(Заплановано / Порожній)* — генератор доказів комплаєнсу (команда `make compliance`): запускає аудит кластера через `kube-bench` (CIS Kubernetes Benchmark) та `Kubescape` (NSA-CISA / MITRE ATT&CK) і зберігає звіти в `docs/evidence/` та `compliance/`.
+* **`scripts/verify.sh`** *(Опціонально після CI перевірити образи які лежать вже в registry)* — локальна/CI перевірка криптографічної цілісності образів: валідує безключовий підпис `Cosign` (OIDC identity + Rekor transparency log) та наявність атестацій (`SBOM`, `vuln`, `SLSA`). Необхідно передати повний шлях образу з @sha256.
+
+* **`scripts/policy-drift.sh`** *(Запуск в CI nightly.yml / Опціонально локально)* — перевірка дрифту налаштувань безпеки GitHub (Branch Protection, Tag Protection, Environments) через GitHub API шляхом звірки з еталоном `security/repo-baseline.json` (запускається в `nightly.yml`). Цей скрипт потрібен для захисту дій в гілку мейн. Скрипт щоночі в nightly.yml Робить запит у GitHub API і питає які зараз налаштування захисту стоять на гілці main. Якщо хтось випадково або навмисно послабив захист (наприклад, вимкнув enforce_admins, дозволив force_push чи прибрав обов'язкові PR-рев'ю) — скрипт фіксує [DRIFT] і падає з помилкою (exit 1).
+
+* **`scripts/gen-evidence.sh`** *(Локально / бажано / після запуску кластера з додатками)* — генератор доказів комплаєнсу (команда `make compliance`): запускає аудит кластера через `kube-bench` (CIS Kubernetes Benchmark) та `Kubescape` (NSA-CISA / MITRE ATT&CK) і зберігає звіти в `docs/evidence/` та `compliance/`.
+Скрипт поділяється на три етапи: Conftest - локальне лінутвання маніфестів за політиками та вивід результатів в файл, Gitleaks - , 
 
 #### 3. Automated Red-Teaming (`redteam/`)
 * **`redteam/run.sh`** *(Реалізовано)* — головний раннер автоматизованого Red-Team тестування (команда `make redteam`): знаходить і запускає всі сценарії `redteam/scenarios/RT-*/attack.sh`, підраховує `Passed/Failed` і повертає ненульовий код виходу при регресії захисту.
-* **`redteam/scenarios/RT-01..RT-14/attack.sh`** *(Заплановано / `BASE.md`, `PLAN.md`)* — 14+ автоматизованих сценаріїв атак на кожен шар довіри (непідписані образи, підміна дайджесту, відсутність SBOM/provenance, `:latest` тег, `root`/`privileged` поди, обхід Cilium L7/FQDN, звернення до GCP metadata `169.254.169.254`, запуск `sh/bash` у контейнері, використання відкликаних DB-кредів Vault).
+* **`redteam/scenarios/RT-01..RT-14/attack.sh`** *(Реалізовано)* — 14 автоматизованих сценаріїв атак на кожен шар довіри (непідписані образи, невалідна identity, `:latest` тег, відкликані дайджести, відсутність SBOM/provenance, `root`/`privileged` поди, недовірені реєстри, обхід Cilium L7/FQDN і GCP metadata `169.254.169.254`, запуск Falco-детекту, секрети й відкликання DB-кредів Vault, дрифт baseline, вразливі workflow та прострочені CVE-винятки).
 * **`redteam/ztrt/`** *(Заплановано / `BASE-1.md`)* — розширений Python/Go runner для декларативних YAML-сценаріїв (`RT-01..RT-26` + позитивні контролі `P-01..P-03`), збору доказів (Kyverno events, Hubble `DROPPED` flows, Falco alerts) та генерації JUnit/Markdown звітів.
 
+
+---
+
+### Compliance
+**conftest** - перевіряє YAML-маніфести ще до деплою в кластер (на етапі Pull Request). В папці лежать два маніфести правил для утиліти conftest.
+Для запуску команда: conftest test apps/manifests/ -p compliance/conftest/
+Прогнавши через правила файли в apps/manifests видає результат PASS / FAIL.
+Викоритовується в ручній перевірці та в CI кроці в pr.yml.
+
+**kube-bench** - перевіряє сам GKE-кластер і ноди на відповідність стандарту CIS GKE Benchmark
+**kubescape** - сканує всі запущені ресурси, RBAC та мережу на відповідність вимогам NSA-CISA та матриці атак MITRE ATT&CK.
 
 ---
 

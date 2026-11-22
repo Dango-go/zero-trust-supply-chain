@@ -24,6 +24,7 @@ v_exec() {
 echo "==> [1/6] Checking Vault initialization and seal status..."
 INIT_STATUS=$(kubectl exec -n "${VAULT_NAMESPACE}" "${VAULT_POD}" -- vault status -format=json 2>/dev/null || true)
 
+# Check boolean status
 INITIALIZED=$(echo "${INIT_STATUS}" | grep -o '"initialized":[^,]*' | cut -d: -f2 | tr -d ' ' || echo "false")
 SEALED=$(echo "${INIT_STATUS}" | grep -o '"sealed":[^,]*' | cut -d: -f2 | tr -d ' ' || echo "true")
 

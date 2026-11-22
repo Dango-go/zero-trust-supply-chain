@@ -1,0 +1,8 @@
+id: RT-08
+title: Lateral movement and Cilium L7 HTTP policy enforcement
+threat: T8
+layer: Network (Cilium eBPF)
+policy: orders-to-payments-l7, default-deny-all
+rule: http-l7-allowlist-and-egress-deny
+expected_outcome: blocked_403_and_timeout
+expected_pattern: "403|timed out|refused|DROPPED"

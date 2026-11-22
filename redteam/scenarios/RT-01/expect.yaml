@@ -1,0 +1,9 @@
+id: RT-01
+title: Deploy unsigned container image
+threat: T3
+layer: Admission (Kyverno)
+policy: verify-images
+rule: verify-cosign-signature
+expected_outcome: denied
+expected_pattern: "verify-images"
+fixture: redteam/fixtures/rt01-unsigned-pod.yaml

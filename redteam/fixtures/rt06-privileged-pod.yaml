@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rt06-privileged-probe
+  namespace: zt-apps
+  labels:
+    app.kubernetes.io/name: rt06-privileged-probe
+    app.kubernetes.io/part-of: zero-trust-supply-chain
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  hostNetwork: true
+  securityContext:
+    runAsNonRoot: false
+    runAsUser: 0
+  containers:
+    - name: probe
+      image: ${RT06_IMAGE}
+      securityContext:
+        privileged: true
+        allowPrivilegeEscalation: true
+        readOnlyRootFilesystem: false
+      volumeMounts:
+        - name: host-root
+          mountPath: /host
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+  volumes:
+    - name: host-root
+      hostPath:
+        path: /

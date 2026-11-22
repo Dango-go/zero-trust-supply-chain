@@ -1,0 +1,8 @@
+id: RT-11
+title: Secret hygiene and Vault dynamic credential revocation
+threat: T6
+layer: Secrets (Gitleaks & HashiCorp Vault)
+policy: platform/vault/policies/orders-rw.hcl
+rule: dynamic-db-creds-and-zero-static-secrets
+expected_outcome: zero_leaks_and_revoked
+expected_pattern: "0 leaks|Revocation|PASS"

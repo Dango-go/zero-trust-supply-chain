@@ -1,0 +1,4 @@
+vulnerabilities:
+  - id: CVE-2024-99999
+    statement: "Simulated expired exception for RT-14 audit check"
+    expired_at: "2020-01-01T00:00:00Z"

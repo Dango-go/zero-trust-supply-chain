@@ -120,7 +120,6 @@ echo "==> Deploying Zero-Trust Applications (zt-orders, zt-payments)..."
 kubectl apply -f apps/manifests/01-zt-payments.yaml
 kubectl apply -f apps/manifests/02-zt-orders.yaml
 
-echo "=============================================================================="
+
 echo " SUCCESS! Zero-Trust Platform has been successfully initialized on GKE!"
-echo "=============================================================================="
 kubectl get pods -A
