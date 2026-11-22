@@ -56,7 +56,7 @@ jobs:
         # SBOM
       - name: Install Grype (Secondary independent scanner)
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sudo sh -s -- -b /usr/local/bin v0.89.0
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sudo sh -s -- -b /usr/local/bin v0.91.2
 
  
       # Check security/trivyignore.yaml for expired exceptions 
